@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoTeC Automator Control</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-200 font-sans">
+    <div class="container mx-auto p-8 max-w-2xl">
+        <h1 class="text-4xl font-bold text-white mb-2">MoTeC Automator</h1>
+        <p class="text-gray-400 mb-8">Control panel for the telemetry logger service.</p>
+
+        <div class="bg-gray-800 rounded-lg p-6 mb-8">
+            <h2 class="text-2xl font-semibold mb-4 text-white">Service Status</h2>
+            <div class="flex items-center space-x-4">
+                <div id="status-indicator" class="w-6 h-6 rounded-full bg-gray-500 animate-pulse"></div>
+                <span id="status-text" class="text-xl font-medium text-gray-300">Fetching status...</span>
+            </div>
+            <div class="flex space-x-4 mt-6">
+                <button onclick="controlService('start')" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg w-full">Start</button>
+                <button onclick="controlService('stop')" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg w-full">Stop</button>
+                <button onclick="controlService('restart')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg w-full">Restart</button>
+            </div>
+        </div>
+
+        <div class="bg-gray-800 rounded-lg p-6">
+            <h2 class="text-2xl font-semibold mb-4 text-white">Live Configuration</h2>
+            <div class="space-y-4">
+                <div>
+                    <label for="driver" class="block text-sm font-medium text-gray-400">Driver Name</label>
+                    <input type="text" id="driver" class="mt-1 block w-full bg-gray-900 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div>
+                    <label for="session" class="block text-sm font-medium text-gray-400">Session Type</label>
+                    <input type="text" id="session" class="mt-1 block w-full bg-gray-900 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div class="flex items-center">
+                    <input id="replay" type="checkbox" class="h-4 w-4 text-indigo-600 bg-gray-700 border-gray-600 rounded focus:ring-indigo-500">
+                    <label for="replay" class="ml-2 block text-sm text-gray-300">Enable Replay Logging</label>
+                </div>
+            </div>
+            <div class="mt-6">
+                <button onclick="saveAndRestart()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg w-full">Save & Restart Service</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const statusIndicator = document.getElementById('status-indicator');
+        const statusText = document.getElementById('status-text');
+
+        async function fetchStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+
+                statusIndicator.classList.remove('animate-pulse', 'bg-gray-500', 'bg-green-500', 'bg-red-500');
+                if (data.is_active) {
+                    statusIndicator.classList.add('bg-green-500');
+                    statusText.textContent = 'Active (Running)';
+                } else if (data.status === 'failed') {
+                    statusIndicator.classList.add('bg-red-500');
+                    statusText.textContent = 'Failed';
+                } else {
+                    statusIndicator.classList.add('bg-gray-500');
+                    statusText.textContent = 'Inactive (Dead)';
+                }
+
+                document.getElementById('driver').value = data.config.driver;
+                document.getElementById('session').value = data.config.session;
+                document.getElementById('replay').checked = data.config.replay;
+
+            } catch (error) {
+                statusText.textContent = 'Error fetching status.';
+                statusIndicator.classList.remove('animate-pulse');
+                statusIndicator.classList.add('bg-red-500');
+            }
+        }
+
+        async function controlService(action) {
+            await fetch('/api/control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: action })
+            });
+            setTimeout(fetchStatus, 1000);
+        }
+        
+        async function saveAndRestart() {
+            const config = {
+                driver: document.getElementById('driver').value,
+                session: document.getElementById('session').value,
+                replay: document.getElementById('replay').checked
+            };
+            
+            await fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            });
+            
+            await controlService('restart');
+        }
+
+        fetchStatus();
+        setInterval(fetchStatus, 5000); // Refresh status every 5 seconds
+    </script>
+</body>
+</html>

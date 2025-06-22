@@ -46,29 +46,11 @@ fi
 if [ "$CONFIG_CREATED" = true ]; then
     echo -e "\n${GREEN}Configuration files have been created.${NC}"
     echo -e "Please edit ${YELLOW}inventory.ini${NC} and ${YELLOW}config.yml${NC} with your details."
-    echo -e "Then, place your Google Cloud key file in this directory."
     echo -e "\nAfter that, run this script again."
     exit 0
 fi
 
 echo -e "${GREEN}Configuration files found.${NC}"
-
-# --- Dependency Checks ---
-echo "Checking for local dependencies..."
-if ! command -v ansible >/dev/null 2>&1; then
-    echo -e "${RED}Error: Ansible is not installed.${NC}" >&2
-    echo "Please install it to continue." >&2
-    exit 1
-fi
-echo -e "${GREEN}Dependencies found.${NC}"
-
-GCP_KEY_FILE=$(grep 'gcp_key_file:' config.yml | awk '{print $2}' | tr -d '"')
-if [ ! -f "$GCP_KEY_FILE" ]; then
-    echo -e "${RED}Error: Google Cloud key file '${GCP_KEY_FILE}' not found.${NC}" >&2
-    echo "Please place your service account key in this directory and check the 'gcp_key_file' setting in config.yml." >&2
-    exit 1
-fi
-echo -e "${GREEN}Google Cloud key found.${NC}"
 
 # --- Run Ansible Playbook ---
 echo ""

@@ -1,28 +1,21 @@
 # Main configuration for the telemetry appliance
 # Copy this file to config.yml and edit the values.
-# === Telemetry Settings ===
-# Add any UDP ports your sims use.
-telemetry_ports:
-  - 33739 # GT7 Handshake
-  - 33740 # GT7 Data
-  - 20777 # F1 Games / AMS2
+
 # === System Settings ===
 timezone: "America/New_York"
 new_hostname: "race-pi"
-# === Google Drive Settings ===
-gcp_key_file: "service_account.json"
-gdrive_folder_id: "your_folder_id_goes_here"
-rclone_upload_mode: "move" # Use "move" or "copy"
+
 # === Application Settings ===
-sim_type: "gt7" # "gt7" or "ams2"
-# Set this to the IP address of your PlayStation console (required for GT7)
-playstation_ip: "192.168.1.100"
-# Set to true to capture replay data instead of live data
+sim_type: "gt7" # "gt7" or "ams2". NOTE: ams2 support is untested.
+playstation_ip: "192.168.1.100" # Required for GT7 only.
+
+# === Webapp Settings ===
+webapp_port: 8080
+
+# === Optional Telemetry Flags ===
 replay: true
-# Set to true to save raw telemetry packets to a local database on the Pi
 save_raw_telemetry: false
-# Optional: Override details in the MoTeC log file
 driver: ""
 session: ""
-vehicle: "" # Leave empty to use in-game vehicle
-venue: ""   # Leave empty to use in-game venue
+vehicle: ""
+venue: ""

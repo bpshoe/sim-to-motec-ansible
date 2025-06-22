@@ -1,0 +1,52 @@
+- name: "WEBAPP | Create webapp directory"
+  ansible.builtin.file:
+    path: /opt/motec_webapp
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+- name: "WEBAPP | Create static and templates directories"
+  ansible.builtin.file:
+    path: "/opt/motec_webapp/{{ item }}"
+    state: directory
+  loop:
+    - static
+    - templates
+- name: "WEBAPP | Copy Flask API script"
+  ansible.builtin.template:
+    src: api.py.j2
+    dest: /opt/motec_webapp/api.py
+- name: "WEBAPP | Copy web UI files"
+  ansible.builtin.template:
+    src: index.html.j2
+    dest: /opt/motec_webapp/templates/index.html
+- name: "WEBAPP | Create systemd service file for webapp"
+  ansible.builtin.template:
+    src: motec-webapp.service.j2
+    dest: /etc/systemd/system/motec-webapp.service
+    force: yes
+- name: "WEBAPP | Create nginx server block"
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/sites-available/motec_webapp
+    force: yes
+- name: "WEBAPP | Enable nginx site"
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/motec_webapp
+    dest: /etc/nginx/sites-enabled/motec_webapp
+    state: link
+  notify: Restart nginx
+- name: "WEBAPP | Allow webapp to control systemd service"
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/motec_webapp
+    content: '{{ ansible_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl start sim-to-motec.service, /usr/bin/systemctl stop sim-to-motec.service, /usr/bin/systemctl restart sim-to-motec.service, /usr/bin/systemctl status sim-to-motec.service'
+    mode: '0440'
+- name: "WEBAPP | Ensure services are enabled and started"
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  loop:
+    - motec-webapp.service
+    - nginx

@@ -1,0 +1,10 @@
+- name: "SAMBA | Configure Samba file sharing"
+  ansible.builtin.template:
+    src: smb.conf.j2
+    dest: /etc/samba/smb.conf
+  notify: Restart samba
+- name: "SAMBA | Ensure Samba service is enabled and started"
+  ansible.builtin.systemd:
+    name: smbd
+    state: started
+    enabled: yes

@@ -1,53 +1,39 @@
 - name: "COMMON | Set hostname"
   ansible.builtin.hostname:
     name: "{{ new_hostname }}"
-
 - name: "COMMON | Ensure hostname is in /etc/hosts"
   ansible.builtin.lineinfile:
     path: /etc/hosts
     regexp: '^127\.0\.1\.1.*'
     line: "127.0.1.1\t{{ new_hostname }}"
-    owner: root
-    group: root
-    mode: '0644'
-
 - name: "COMMON | Set timezone"
   community.general.timezone:
     name: "{{ timezone }}"
-
 - name: "COMMON | Update apt cache and install essential packages"
   ansible.builtin.apt:
-    name: [ufw, fail2ban, git, python3-venv, python3-dev, tcpdump]
+    name: [ufw, fail2ban, git, python3-venv, python3-dev, tcpdump, samba, nginx, python3-flask]
     state: present
     update_cache: yes
-
 - name: "COMMON | Allow standard SSH port through firewall"
   community.general.ufw:
     rule: allow
     port: "22"
     proto: tcp
-
-- name: "COMMON | Allow telemetry ports through firewall"
-  community.general.ufw:
+- name: "COMMON | Allow Samba ports through firewall"
+  ansible.builtin.ufw:
     rule: allow
     port: "{{ item }}"
-    proto: udp
-  loop: "{{ telemetry_ports }}"
-
+  loop:
+    - "139"
+    - "445"
+- name: "COMMON | Allow Webapp port through firewall"
+  ansible.builtin.ufw:
+    rule: allow
+    port: "{{ webapp_port }}"
+    proto: tcp
 - name: "COMMON | Enable firewall"
   community.general.ufw:
     state: enabled
-
-- name: "COMMON | Configure automatic security upgrades"
-  ansible.builtin.copy:
-    dest: "/etc/apt/apt.conf.d/{{ item.name }}"
-    content: "{{ item.content }}"
-  loop:
-    - name: "20auto-upgrades"
-      content: 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";'
-    - name: "50unattended-upgrades"
-      content: 'Unattended-Upgrade::Allowed-Origins { "${distro_id}:${distro_codename}-security"; };\nUnattended-Upgrade::Automatic-Reboot "true";'
-
 - name: "COMMON | Install status script on the Pi"
   ansible.builtin.template:
     src: "status.sh.j2"

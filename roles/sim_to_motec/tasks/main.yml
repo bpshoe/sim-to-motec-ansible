@@ -2,13 +2,11 @@
   ansible.builtin.stat:
     path: "{{ app_dest }}"
   register: dest_path
-
 - name: "SIM2MOTEC | Check if destination is a git repository"
   ansible.builtin.stat:
     path: "{{ app_dest }}/.git"
   register: git_repo
   when: dest_path.stat.exists
-
 - name: "SIM2MOTEC | Remove non-git directory if it exists"
   ansible.builtin.file:
     path: "{{ app_dest }}"
@@ -16,7 +14,6 @@
   when:
     - dest_path.stat.exists
     - not git_repo.stat.exists
-
 - name: "SIM2MOTEC | Clone or update repository from GitHub"
   ansible.builtin.git:
     repo: "{{ app_repo }}"
@@ -25,14 +22,14 @@
     force: yes
 - name: "SIM2MOTEC | Create log directories"
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ app_dest }}/logs/{{ item }}"
     state: directory
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: '0755'
   loop:
-    - "{{ gt7_log_path }}"
-    - "{{ ams2_log_path }}"
+    - gt7
+    - ams2
 - name: "SIM2MOTEC | Create Python virtual environment"
   ansible.builtin.command:
     cmd: "python3 -m venv {{ venv_path }}"

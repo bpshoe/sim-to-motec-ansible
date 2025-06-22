@@ -6,23 +6,11 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
-
 echo -e "${CYAN}--- MoTeC Automator Status Dashboard ---${NC}"
-
 echo -e "\n${YELLOW}[1] Checking Logger Service (sim-to-motec)...${NC}"
 sudo systemctl status sim-to-motec.service --no-pager
-
-echo -e "\n${YELLOW}[2] Last 10 Lines of Logger Service Log...${NC}"
-sudo journalctl -u sim-to-motec.service -n 10 --no-pager
-
-echo -e "\n${YELLOW}[3] Checking Upload Watcher (rclone.path)...${NC}"
-sudo systemctl status rclone-upload.path --no-pager
-
-echo -e "\n${YELLOW}[4] Last 10 Lines of Upload Log (/var/log/rclone-upload.log)...${NC}"
-if [ -f "/var/log/rclone-upload.log" ]; then
-    sudo tail -n 10 /var/log/rclone-upload.log
-else
-    echo -e "${RED}Log file not found.${NC}"
-fi
-
+echo -e "\n${YELLOW}[2] Last 5 Lines of Logger Service Log...${NC}"
+sudo journalctl -u sim-to-motec.service -n 5 --no-pager
+echo -e "\n${YELLOW}[3] Checking Web Control Panel API...${NC}"
+sudo systemctl status motec-webapp.service --no-pager
 echo -e "\n${CYAN}--- End of Status Report ---${NC}"

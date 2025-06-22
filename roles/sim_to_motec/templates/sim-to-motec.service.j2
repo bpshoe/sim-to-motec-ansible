@@ -7,7 +7,7 @@ User={{ ansible_user }}
 Group={{ ansible_user }}
 Type=simple
 WorkingDirectory={{ app_dest }}
-ExecStart={{ venv_path }}/bin/python3 {{ app_dest }}/{% if sim_type == 'ams2' %}ams2-cli.py{% else %}gt7-cli.py {{ playstation_ip }}{% endif %}{% if replay|bool %} --replay{% endif %}{% if save_raw_telemetry|bool %} --saveraw{% endif %}{% if driver is defined and driver|length > 0 %} --driver "{{ driver }}"{% endif %}{% if session is defined and session|length > 0 %} --session "{{ session }}"{% endif %}{% if vehicle is defined and vehicle|length > 0 %} --vehicle "{{ vehicle }}"{% endif %}{% if venue is defined and venue|length > 0 %} --venue "{{ venue }}"{% endif %}
+ExecStart={{ venv_path }}/bin/python3 {{ app_dest }}/{% if sim_type == 'ams2' %}ams2-cli.py{% else %}gt7-cli.py {{ playstation_ip }}{% endif %}{% if replay|bool %} --replay{% endif %}{% if save_raw_telemetry|bool %} --saveraw{% endif %}{% if driver is defined and driver %} --driver "{{ driver }}"{% endif %}{% if session is defined and session %} --session "{{ session }}"{% endif %}{% if vehicle is defined and vehicle %} --vehicle "{{ vehicle }}"{% endif %}{% if venue is defined and venue %} --venue "{{ venue }}"{% endif %}
 Restart=on-failure
 RestartSec=10
 

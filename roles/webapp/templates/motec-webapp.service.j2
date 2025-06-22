@@ -1,0 +1,13 @@
+[Unit]
+Description=MoTeC Automator Web Control Panel
+After=network.target
+
+[Service]
+User={{ ansible_user }}
+Group={{ ansible_user }}
+WorkingDirectory=/opt/motec_webapp
+ExecStart=/usr/bin/python3 -m flask run --host=0.0.0.0
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

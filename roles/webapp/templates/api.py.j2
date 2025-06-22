@@ -1,0 +1,76 @@
+import subprocess
+from flask import Flask, jsonify, request, render_template, g
+import yaml
+import os
+
+app = Flask(__name__)
+CONFIG_PATH = '/opt/motec/config.yml'
+
+def get_config():
+    if 'config' not in g:
+        try:
+            with open(CONFIG_PATH, 'r') as f:
+                g.config = yaml.safe_load(f)
+        except FileNotFoundError:
+            g.config = {}
+    return g.config
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/api/status')
+def get_status():
+    try:
+        # Use systemctl to check the status of the service
+        result = subprocess.run(['sudo', 'systemctl', 'status', 'sim-to-motec.service'], capture_output=True, text=True)
+        is_active = "Active: active (running)" in result.stdout
+        status_text = "active (running)" if is_active else "inactive (dead)"
+        if "Active: failed" in result.stdout:
+            status_text = "failed"
+        
+        config = get_config()
+        return jsonify({
+            'status': status_text,
+            'is_active': is_active,
+            'config': {
+                'driver': config.get('driver', ''),
+                'session': config.get('session', ''),
+                'replay': config.get('replay', False)
+            }
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/control', methods=['POST'])
+def control_service():
+    action = request.json.get('action')
+    valid_actions = ['start', 'stop', 'restart']
+    if action not in valid_actions:
+        return jsonify({'status': 'error', 'message': 'Invalid action'}), 400
+    try:
+        subprocess.run(['sudo', 'systemctl', action, 'sim-to-motec.service'], check=True)
+        return jsonify({'status': 'success', 'message': f'Service {action} command sent.'})
+    except subprocess.CalledProcessError as e:
+        return jsonify({'status': 'error', 'message': f'Failed to {action} service: {e.stderr}'}), 500
+
+@app.route('/api/config', methods=['POST'])
+def update_config():
+    new_config = request.json
+    try:
+        with open(CONFIG_PATH, 'r') as f:
+            config = yaml.safe_load(f)
+        
+        config['driver'] = new_config.get('driver', config.get('driver', ''))
+        config['session'] = new_config.get('session', config.get('session', ''))
+        config['replay'] = new_config.get('replay', config.get('replay', False))
+
+        with open(CONFIG_PATH, 'w') as f:
+            yaml.dump(config, f, default_flow_style=False)
+        
+        return jsonify({'status': 'success', 'message': 'Configuration updated.'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
