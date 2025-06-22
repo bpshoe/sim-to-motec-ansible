@@ -1,0 +1,3 @@
+[motec_pi]
+# Replace with your Raspberry Pi's IP address and the SSH user for that Pi.
+192.168.1.123 ansible_user=pi

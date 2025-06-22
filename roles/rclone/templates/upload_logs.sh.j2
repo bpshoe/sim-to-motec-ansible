@@ -1,0 +1,26 @@
+#!/bin/bash
+# This script finds new log files, parses their names, and uploads them to categorized folders.
+
+LOG_DIR="{{ log_buffer_path }}"
+REMOTE_NAME="{{ gdrive_remote_name }}"
+RCLONE_CONFIG="/home/{{ ansible_user }}/.config/rclone/rclone.conf"
+LOG_FILE="/var/log/rclone-upload.log"
+RCLONE_MODE="{{ rclone_upload_mode }}"
+
+# Wait a moment for the file to be fully written
+sleep 10
+
+# Find all .ld files in any subdirectory of the main log dir (e.g., gt7/, ams2/)
+find "$LOG_DIR" -type f -name "*.ld" | while read -r file; do
+    filename=$(basename "$file")
+    # Extract the track name (everything before the first underscore)
+    trackname=$(echo "$filename" | cut -d'_' -f1)
+
+    # Log the action
+    echo "$(date) | Processing $filename, moving to folder: $trackname" >> "$LOG_FILE"
+
+    # Move or copy the file to the categorized subdirectory on Google Drive
+    /usr/bin/rclone "$RCLONE_MODE" "$file" "${REMOTE_NAME}:${trackname}/" \
+        --config "$RCLONE_CONFIG" \
+        --log-level INFO --log-file "$LOG_FILE"
+done

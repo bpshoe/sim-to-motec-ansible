@@ -1,0 +1,5 @@
+app_repo: "https://github.com/GeekyDeaks/sim-to-motec.git"
+app_dest: "/opt/sim-to-motec"
+venv_path: "{{ app_dest }}/venv"
+gt7_log_path: "/opt/sim-to-motec/logs/gt7"
+ams2_log_path: "/opt/sim-to-motec/logs/ams2"

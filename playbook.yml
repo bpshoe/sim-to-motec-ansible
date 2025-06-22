@@ -1,0 +1,9 @@
+- name: Deploy and Configure Sim-to-MoTeC Telemetry Appliance
+  hosts: motec_pi
+  become: true
+  vars_files:
+    - config.yml
+  roles:
+    - role: common
+    - role: sim_to_motec
+    - role: rclone

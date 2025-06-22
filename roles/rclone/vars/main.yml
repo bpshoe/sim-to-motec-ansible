@@ -1,0 +1,2 @@
+gdrive_remote_name: "gdrive_service_account"
+log_buffer_path: "/opt/sim-to-motec/logs" # Watch the parent logs directory

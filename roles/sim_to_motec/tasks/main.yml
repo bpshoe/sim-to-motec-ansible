@@ -1,0 +1,60 @@
+- name: "SIM2MOTEC | Check if destination path exists"
+  ansible.builtin.stat:
+    path: "{{ app_dest }}"
+  register: dest_path
+
+- name: "SIM2MOTEC | Check if destination is a git repository"
+  ansible.builtin.stat:
+    path: "{{ app_dest }}/.git"
+  register: git_repo
+  when: dest_path.stat.exists
+
+- name: "SIM2MOTEC | Remove non-git directory if it exists"
+  ansible.builtin.file:
+    path: "{{ app_dest }}"
+    state: absent
+  when:
+    - dest_path.stat.exists
+    - not git_repo.stat.exists
+
+- name: "SIM2MOTEC | Clone or update repository from GitHub"
+  ansible.builtin.git:
+    repo: "{{ app_repo }}"
+    dest: "{{ app_dest }}"
+    version: main
+    force: yes
+- name: "SIM2MOTEC | Create log directories"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ gt7_log_path }}"
+    - "{{ ams2_log_path }}"
+- name: "SIM2MOTEC | Create Python virtual environment"
+  ansible.builtin.command:
+    cmd: "python3 -m venv {{ venv_path }}"
+    creates: "{{ venv_path }}/bin/pip"
+- name: "SIM2MOTEC | Install Python dependencies into venv (excluding GUI)"
+  ansible.builtin.shell:
+    cmd: "grep -v 'PySimpleGUI' {{ app_dest }}/requirements.txt | {{ venv_path }}/bin/pip3 install -r /dev/stdin"
+    creates: "{{ venv_path }}/lib/python3.11/site-packages/salsa20"
+- name: "SIM2MOTEC | Set ownership of application directory"
+  ansible.builtin.file:
+    path: "{{ app_dest }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    recurse: yes
+- name: "SIM2MOTEC | Create systemd service file"
+  ansible.builtin.template:
+    src: "sim-to-motec.service.j2"
+    dest: "/etc/systemd/system/sim-to-motec.service"
+    force: yes
+- name: "SIM2MOTEC | Ensure sim-to-motec service is enabled and started"
+  ansible.builtin.systemd:
+    name: sim-to-motec.service
+    daemon_reload: yes
+    enabled: yes
+    state: started
