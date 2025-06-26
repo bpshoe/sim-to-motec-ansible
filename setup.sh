@@ -18,31 +18,15 @@ NC='\033[0m'
 echo "Verifying project setup..."
 CONFIG_CREATED=false
 
-# Check for inventory.ini
 if [ ! -f "inventory.ini" ]; then
-    if [ -f "inventory.ini.example" ]; then
-        echo "Creating 'inventory.ini' from template..."
-        cp inventory.ini.example inventory.ini
-        CONFIG_CREATED=true
-    else
-        echo -e "${RED}Error: 'inventory.ini.example' is missing. Cannot create config.${NC}" >&2
-        exit 1
-    fi
+    cp inventory.ini.example inventory.ini
+    CONFIG_CREATED=true
 fi
-
-# Check for config.yml
 if [ ! -f "config.yml" ]; then
-    if [ -f "config.yml.example" ]; then
-        echo "Creating 'config.yml' from template..."
-        cp config.yml.example config.yml
-        CONFIG_CREATED=true
-    else
-        echo -e "${RED}Error: 'config.yml.example' is missing. Cannot create config.${NC}" >&2
-        exit 1
-    fi
+    cp config.yml.example config.yml
+    CONFIG_CREATED=true
 fi
 
-# If we just created the files, instruct the user and exit.
 if [ "$CONFIG_CREATED" = true ]; then
     echo -e "\n${GREEN}Configuration files have been created.${NC}"
     echo -e "Please edit ${YELLOW}inventory.ini${NC} and ${YELLOW}config.yml${NC} with your details."

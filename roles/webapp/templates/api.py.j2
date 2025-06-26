@@ -1,46 +1,39 @@
+from flask import Flask, jsonify, request
+from flask_cors import CORS
 import subprocess
-from flask import Flask, jsonify, request, render_template, g
-import yaml
-import os
+import json
 
 app = Flask(__name__)
-CONFIG_PATH = '/opt/motec/config.yml'
+CORS(app)  # Enable CORS for all routes
 
-def get_config():
-    if 'config' not in g:
-        try:
-            with open(CONFIG_PATH, 'r') as f:
-                g.config = yaml.safe_load(f)
-        except FileNotFoundError:
-            g.config = {}
-    return g.config
-
-@app.route('/')
-def index():
-    return render_template('index.html')
+SETTINGS_FILE = "/etc/motec/service_settings.json"
 
 @app.route('/api/status')
 def get_status():
     try:
-        # Use systemctl to check the status of the service
-        result = subprocess.run(['sudo', 'systemctl', 'status', 'sim-to-motec.service'], capture_output=True, text=True)
-        is_active = "Active: active (running)" in result.stdout
-        status_text = "active (running)" if is_active else "inactive (dead)"
-        if "Active: failed" in result.stdout:
-            status_text = "failed"
+        # Use systemctl's machine-readable output
+        result = subprocess.run(['sudo', 'systemctl', 'is-active', 'sim-to-motec.service'], capture_output=True, text=True)
+        status_text = result.stdout.strip()
+        is_active = status_text == 'active'
         
-        config = get_config()
+        with open(SETTINGS_FILE, 'r') as f:
+            settings = json.load(f)
+
         return jsonify({
             'status': status_text,
             'is_active': is_active,
-            'config': {
-                'driver': config.get('driver', ''),
-                'session': config.get('session', ''),
-                'replay': config.get('replay', False)
-            }
+            'config': settings
         })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/logs')
+def get_logs():
+    try:
+        result = subprocess.run(['sudo', 'journalctl', '-u', 'sim-to-motec.service', '-n', '50', '--no-pager'], capture_output=True, text=True)
+        return jsonify({'logs': result.stdout})
+    except Exception as e:
+        return jsonify({'logs': f"Error fetching logs: {str(e)}"}), 500
 
 @app.route('/api/control', methods=['POST'])
 def control_service():
@@ -54,23 +47,24 @@ def control_service():
     except subprocess.CalledProcessError as e:
         return jsonify({'status': 'error', 'message': f'Failed to {action} service: {e.stderr}'}), 500
 
-@app.route('/api/config', methods=['POST'])
-def update_config():
-    new_config = request.json
+@app.route('/api/save_and_restart', methods=['POST'])
+def save_and_restart():
+    new_settings = request.json
     try:
-        with open(CONFIG_PATH, 'r') as f:
-            config = yaml.safe_load(f)
+        with open(SETTINGS_FILE, 'r') as f:
+            config = json.load(f)
         
-        config['driver'] = new_config.get('driver', config.get('driver', ''))
-        config['session'] = new_config.get('session', config.get('session', ''))
-        config['replay'] = new_config.get('replay', config.get('replay', False))
+        config['driver'] = new_settings.get('driver', config.get('driver', ''))
+        config['session'] = new_settings.get('session', config.get('session', ''))
+        config['replay'] = new_settings.get('replay', config.get('replay', False))
 
-        with open(CONFIG_PATH, 'w') as f:
-            yaml.dump(config, f, default_flow_style=False)
+        with open(SETTINGS_FILE, 'w') as f:
+            json.dump(config, f, indent=4)
         
-        return jsonify({'status': 'success', 'message': 'Configuration updated.'})
+        subprocess.run(['sudo', 'systemctl', 'restart', 'sim-to-motec.service'], check=True)
+        return jsonify({'status': 'success', 'message': 'Settings saved and service restarted.'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='127.0.0.1', port=5000)

@@ -1,0 +1,27 @@
+- name: "VERIFY | Pause for services to fully start"
+  ansible.builtin.pause:
+    seconds: 10
+- name: "VERIFY | Check if webapp is responding"
+  ansible.builtin.uri:
+    url: "http://{{ target_ip }}:{{ webapp_port }}/"
+    method: GET
+  register: webapp_status
+- name: "VERIFY | Check that the web UI is being served"
+  ansible.builtin.assert:
+    that:
+      - webapp_status.status == 200
+    success_msg: "SUCCESS: Web UI is online and reachable."
+    fail_msg: "ERROR: Verification failed. Could not reach the web UI."
+- name: "VERIFY | Check that the API reports the logger is running"
+  ansible.builtin.uri:
+    url: "http://{{ target_ip }}:{{ webapp_port }}/api/status"
+    method: GET
+    return_content: yes
+  register: api_status
+- name: "VERIFY | Check API response"
+  ansible.builtin.assert:
+    that:
+      - api_status.status == 200
+      - api_status.json.is_active == true
+    success_msg: "SUCCESS: API is online and reports logger is running."
+    fail_msg: "ERROR: Verification failed. The API reported status '{{ api_status.json.status | default('unknown') }}' for the logger service."

@@ -12,7 +12,7 @@ playstation_ip: "192.168.1.100" # Required for GT7 only.
 # === Webapp Settings ===
 webapp_port: 8080
 
-# === Optional Telemetry Flags ===
+# === Optional Telemetry Flags (these can be changed via the web UI later) ===
 replay: true
 save_raw_telemetry: false
 driver: ""

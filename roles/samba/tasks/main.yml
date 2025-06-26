@@ -2,9 +2,12 @@
   ansible.builtin.template:
     src: smb.conf.j2
     dest: /etc/samba/smb.conf
-  notify: Restart samba
-- name: "SAMBA | Ensure Samba service is enabled and started"
+  notify: Restart samba services
+- name: "SAMBA | Ensure Samba services are enabled and started"
   ansible.builtin.systemd:
-    name: smbd
+    name: "{{ item }}"
     state: started
     enabled: yes
+  loop:
+    - smbd
+    - nmbd

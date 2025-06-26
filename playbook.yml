@@ -8,3 +8,14 @@
     - role: samba
     - role: sim_to_motec
     - role: webapp
+
+- name: Verify Services are Running
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars:
+    target_ip: "{{ groups['motec_pi'][0] }}"
+  vars_files:
+    - config.yml
+  roles:
+    - role: verify

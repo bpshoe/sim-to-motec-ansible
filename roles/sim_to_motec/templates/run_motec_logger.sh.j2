@@ -1,0 +1,40 @@
+#!/bin/bash
+# This script reads the runtime settings and launches the correct python logger.
+SETTINGS_FILE="/etc/motec/service_settings.json"
+VENV_PATH="{{ venv_path }}/bin/python3"
+APP_DIR="{{ app_dest }}"
+
+# Read settings from JSON file using jq
+DRIVER=$(jq -r '.driver' "$SETTINGS_FILE")
+SESSION=$(jq -r '.session' "$SETTINGS_FILE")
+REPLAY=$(jq -r '.replay' "$SETTINGS_FILE")
+SIM_TYPE=$(jq -r '.sim_type' "$SETTINGS_FILE")
+PS_IP=$(jq -r '.playstation_ip' "$SETTINGS_FILE")
+SAVE_RAW=$(jq -r '.save_raw_telemetry' "$SETTINGS_FILE")
+
+# Build the command
+if [ "$SIM_TYPE" == "ams2" ]; then
+    CMD="$VENV_PATH $APP_DIR/ams2-cli.py"
+else
+    CMD="$VENV_PATH $APP_DIR/gt7-cli.py $PS_IP"
+fi
+
+if [ "$REPLAY" == "true" ]; then
+    CMD+=" --replay"
+fi
+
+if [ "$SAVE_RAW" == "true" ]; then
+    CMD+=" --saveraw"
+fi
+
+if [ -n "$DRIVER" ]; then
+    CMD+=" --driver \"$DRIVER\""
+fi
+
+if [ -n "$SESSION" ]; then
+    CMD+=" --session \"$SESSION\""
+fi
+
+# Execute the command
+cd "$APP_DIR"
+eval exec $CMD

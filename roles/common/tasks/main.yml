@@ -11,7 +11,7 @@
     name: "{{ timezone }}"
 - name: "COMMON | Update apt cache and install essential packages"
   ansible.builtin.apt:
-    name: [ufw, fail2ban, git, python3-venv, python3-dev, tcpdump, samba, nginx, python3-flask]
+    name: [ufw, fail2ban, git, python3-venv, python3-dev, tcpdump, samba, nginx, python3-flask, python3-yaml, jq, python3-flask-cors]
     state: present
     update_cache: yes
 - name: "COMMON | Allow standard SSH port through firewall"

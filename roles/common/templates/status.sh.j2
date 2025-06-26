@@ -13,4 +13,14 @@ echo -e "\n${YELLOW}[2] Last 5 Lines of Logger Service Log...${NC}"
 sudo journalctl -u sim-to-motec.service -n 5 --no-pager
 echo -e "\n${YELLOW}[3] Checking Web Control Panel API...${NC}"
 sudo systemctl status motec-webapp.service --no-pager
+echo -e "\n${YELLOW}[4] Checking Nginx Web Server...${NC}"
+sudo systemctl status nginx.service --no-pager
+echo -e "\n${YELLOW}[5] Checking Samba File Share...${NC}"
+sudo systemctl status smbd.service --no-pager
+echo -e "\n${YELLOW}[6] Current Runtime Settings (/etc/motec/service_settings.json)...${NC}"
+if [ -f "/etc/motec/service_settings.json" ]; then
+    jq . /etc/motec/service_settings.json
+else
+    echo -e "${RED}Settings file not found.${NC}"
+fi
 echo -e "\n${CYAN}--- End of Status Report ---${NC}"

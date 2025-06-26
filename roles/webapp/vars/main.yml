@@ -1,0 +1,4 @@
+webapp_dest: "/var/www/motec_webapp"
+api_dest: "/opt/motec_webapp"
+api_venv_path: "{{ api_dest }}/venv"
+settings_file_path: "/etc/motec/service_settings.json"

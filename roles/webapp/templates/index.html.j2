@@ -7,41 +7,50 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-900 text-gray-200 font-sans">
-    <div class="container mx-auto p-8 max-w-2xl">
+    <div class="container mx-auto p-4 md:p-8 max-w-5xl">
         <h1 class="text-4xl font-bold text-white mb-2">MoTeC Automator</h1>
         <p class="text-gray-400 mb-8">Control panel for the telemetry logger service.</p>
 
-        <div class="bg-gray-800 rounded-lg p-6 mb-8">
-            <h2 class="text-2xl font-semibold mb-4 text-white">Service Status</h2>
-            <div class="flex items-center space-x-4">
-                <div id="status-indicator" class="w-6 h-6 rounded-full bg-gray-500 animate-pulse"></div>
-                <span id="status-text" class="text-xl font-medium text-gray-300">Fetching status...</span>
-            </div>
-            <div class="flex space-x-4 mt-6">
-                <button onclick="controlService('start')" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg w-full">Start</button>
-                <button onclick="controlService('stop')" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg w-full">Stop</button>
-                <button onclick="controlService('restart')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg w-full">Restart</button>
-            </div>
-        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div>
+                <div class="bg-gray-800 rounded-lg p-6 mb-8">
+                    <h2 class="text-2xl font-semibold mb-4 text-white">Service Status</h2>
+                    <div class="flex items-center space-x-4">
+                        <div id="status-indicator" class="w-8 h-8 rounded-full bg-gray-500 animate-pulse"></div>
+                        <span id="status-text" class="text-2xl font-medium text-gray-300 capitalize">Fetching...</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-4 mt-6">
+                        <button onclick="controlService('start')" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg text-lg">Start</button>
+                        <button onclick="controlService('stop')" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg text-lg">Stop</button>
+                        <button onclick="controlService('restart')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg text-lg">Restart</button>
+                    </div>
+                </div>
 
-        <div class="bg-gray-800 rounded-lg p-6">
-            <h2 class="text-2xl font-semibold mb-4 text-white">Live Configuration</h2>
-            <div class="space-y-4">
-                <div>
-                    <label for="driver" class="block text-sm font-medium text-gray-400">Driver Name</label>
-                    <input type="text" id="driver" class="mt-1 block w-full bg-gray-900 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-                <div>
-                    <label for="session" class="block text-sm font-medium text-gray-400">Session Type</label>
-                    <input type="text" id="session" class="mt-1 block w-full bg-gray-900 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-                <div class="flex items-center">
-                    <input id="replay" type="checkbox" class="h-4 w-4 text-indigo-600 bg-gray-700 border-gray-600 rounded focus:ring-indigo-500">
-                    <label for="replay" class="ml-2 block text-sm text-gray-300">Enable Replay Logging</label>
+                <div class="bg-gray-800 rounded-lg p-6">
+                    <h2 class="text-2xl font-semibold mb-4 text-white">Live Configuration</h2>
+                    <div class="space-y-6">
+                        <div>
+                            <label for="driver" class="block text-lg font-medium text-gray-400">Driver Name</label>
+                            <input type="text" id="driver" class="mt-1 block w-full bg-gray-900 border border-gray-600 rounded-md shadow-sm py-3 px-4 text-white text-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label for="session" class="block text-lg font-medium text-gray-400">Session Type</label>
+                            <input type="text" id="session" class="mt-1 block w-full bg-gray-900 border border-gray-600 rounded-md shadow-sm py-3 px-4 text-white text-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        <label class="flex items-center p-4 bg-gray-900 rounded-lg cursor-pointer">
+                            <input id="replay" type="checkbox" class="h-6 w-6 text-indigo-600 bg-gray-700 border-gray-600 rounded focus:ring-indigo-500">
+                            <span class="ml-4 block text-lg text-gray-300">Enable Replay Logging</span>
+                        </label>
+                    </div>
+                    <div class="mt-6">
+                        <button onclick="saveAndRestart()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-4 rounded-lg w-full text-xl">Save & Restart Service</button>
+                    </div>
+                     <p id="save-status" class="text-md text-green-400 mt-4 h-5"></p>
                 </div>
             </div>
-            <div class="mt-6">
-                <button onclick="saveAndRestart()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg w-full">Save & Restart Service</button>
+            <div class="bg-gray-800 rounded-lg p-6">
+                <h2 class="text-2xl font-semibold mb-4 text-white">Recent Logger Activity</h2>
+                <pre id="log-output" class="w-full h-full bg-black text-xs text-green-400 p-4 rounded-md overflow-x-auto whitespace-pre-wrap">Fetching logs...</pre>
             </div>
         </div>
     </div>
@@ -49,6 +58,11 @@
     <script>
         const statusIndicator = document.getElementById('status-indicator');
         const statusText = document.getElementById('status-text');
+        const saveStatus = document.getElementById('save-status');
+        const logOutput = document.getElementById('log-output');
+        
+        let currentSettings = {};
+        let initialLoad = true;
 
         async function fetchStatus() {
             try {
@@ -56,55 +70,89 @@
                 const data = await response.json();
 
                 statusIndicator.classList.remove('animate-pulse', 'bg-gray-500', 'bg-green-500', 'bg-red-500');
+                statusText.textContent = data.status;
                 if (data.is_active) {
                     statusIndicator.classList.add('bg-green-500');
-                    statusText.textContent = 'Active (Running)';
                 } else if (data.status === 'failed') {
                     statusIndicator.classList.add('bg-red-500');
-                    statusText.textContent = 'Failed';
                 } else {
                     statusIndicator.classList.add('bg-gray-500');
-                    statusText.textContent = 'Inactive (Dead)';
                 }
 
-                document.getElementById('driver').value = data.config.driver;
-                document.getElementById('session').value = data.config.session;
-                document.getElementById('replay').checked = data.config.replay;
+                if (initialLoad) {
+                    currentSettings = data.config;
+                    document.getElementById('driver').value = data.config.driver;
+                    document.getElementById('session').value = data.config.session;
+                    document.getElementById('replay').checked = data.config.replay;
+                    initialLoad = false;
+                }
 
             } catch (error) {
-                statusText.textContent = 'Error fetching status.';
+                statusText.textContent = 'Connection Error';
                 statusIndicator.classList.remove('animate-pulse');
                 statusIndicator.classList.add('bg-red-500');
             }
         }
 
+        async function fetchLogs() {
+            try {
+                const response = await fetch('/api/logs');
+                const data = await response.json();
+                logOutput.textContent = data.logs || 'No log entries found.';
+            } catch (error) {
+                logOutput.textContent = 'Error fetching logs.';
+            }
+        }
+
         async function controlService(action) {
+            statusText.textContent = `Sending ${action} command...`;
             await fetch('/api/control', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: action })
             });
-            setTimeout(fetchStatus, 1000);
+            setTimeout(() => {
+                fetchStatus();
+                fetchLogs();
+            }, 1000);
         }
         
         async function saveAndRestart() {
-            const config = {
-                driver: document.getElementById('driver').value,
-                session: document.getElementById('session').value,
-                replay: document.getElementById('replay').checked
-            };
+            saveStatus.textContent = "Saving and restarting...";
+            const newSettings = { ...currentSettings }; 
+            newSettings.driver = document.getElementById('driver').value;
+            newSettings.session = document.getElementById('session').value;
+            newSettings.replay = document.getElementById('replay').checked;
             
-            await fetch('/api/config', {
+            const response = await fetch('/api/save_and_restart', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(config)
+                body: JSON.stringify(newSettings)
             });
             
-            await controlService('restart');
+            const data = await response.json();
+            if (data.status === 'success') {
+                 saveStatus.textContent = "Settings saved. Service is restarting.";
+                 initialLoad = true; // Force a reload of the form fields
+            } else {
+                 saveStatus.textContent = `Error: ${data.message}`;
+            }
+
+            setTimeout(() => {
+                fetchStatus();
+                fetchLogs();
+            }, 1500);
+            setTimeout(() => saveStatus.textContent = "", 5000);
         }
 
-        fetchStatus();
-        setInterval(fetchStatus, 5000); // Refresh status every 5 seconds
+        function loadAllData() {
+            fetchStatus();
+            fetchLogs();
+        }
+
+        loadAllData();
+        setInterval(fetchStatus, 5000);
+        setInterval(fetchLogs, 10000);
     </script>
 </body>
 </html>
