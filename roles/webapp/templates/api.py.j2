@@ -1,7 +1,8 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 import subprocess
 import json
+import os
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -66,5 +67,49 @@ def save_and_restart():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+@app.route('/api/live_status')
+def get_live_status():
+    live_file = '/tmp/sim-to-motec-live.json'
+    if not os.path.exists(live_file):
+        return jsonify({'status': 'disconnected'})
+
+    try:
+        with open(live_file, 'r') as f:
+            data = json.load(f)
+        # check if the file is older than 5 seconds
+        if os.path.getmtime(live_file) < (os.path.getmtime(live_file) - 5):
+            return jsonify({'status': 'disconnected'})
+        data['status'] = 'connected'
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=5000)
+    app.run(host='0.0.0.0', port={{ webapp_port | int }})
+
+@app.route('/api/logs', methods=['GET'])
+def list_logs():
+    log_dir = '{{ app_dest }}/logs/{{ sim_type }}'
+    if not os.path.exists(log_dir):
+        return jsonify([])
+    
+    log_files = [f for f in os.listdir(log_dir) if f.endswith('.ld')]
+    
+    files_with_details = []
+    for f in log_files:
+        file_path = os.path.join(log_dir, f)
+        files_with_details.append({
+            'name': f,
+            'size': os.path.getsize(file_path),
+            'modified': os.path.getmtime(file_path)
+        })
+    
+    sorted_files = sorted(files_with_details, key=lambda k: k['modified'], reverse=True)
+    
+    return jsonify(sorted_files)
+
+@app.route('/api/logs/<filename>', methods=['GET'])
+def download_log(filename):
+    log_dir = '{{ app_dest }}/logs/{{ sim_type }}'
+    return send_from_directory(log_dir, filename, as_attachment=True)
+

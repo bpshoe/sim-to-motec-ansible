@@ -53,6 +53,24 @@
                 <pre id="log-output" class="w-full h-full bg-black text-xs text-green-400 p-4 rounded-md overflow-x-auto whitespace-pre-wrap">Fetching logs...</pre>
             </div>
         </div>
+
+        <div class="mt-8 bg-gray-800 rounded-lg p-6">
+            <h2 class="text-2xl font-semibold mb-4 text-white">Download Log Files</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-left text-lg">
+                    <thead class="border-b border-gray-600">
+                        <tr>
+                            <th scope="col" class="px-6 py-3">Filename</th>
+                            <th scope="col" class="px-6 py-3">Size</th>
+                            <th scope="col" class="px-6 py-3">Date Modified</th>
+                        </tr>
+                    </thead>
+                    <tbody id="log-files-body">
+                        <!-- JS will populate this -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -148,6 +166,44 @@
         function loadAllData() {
             fetchStatus();
             fetchLogs();
+            fetchLogFiles();
+        }
+
+        async function fetchLogFiles() {
+            try {
+                const response = await fetch('/api/logs');
+                const files = await response.json();
+                const tableBody = document.getElementById('log-files-body');
+                tableBody.innerHTML = ''; // Clear existing rows
+
+                if (files.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="3" class="text-center py-4">No log files found.</td></tr>';
+                    return;
+                }
+
+                files.forEach(file => {
+                    const row = `
+                        <tr class="border-b border-gray-700 hover:bg-gray-700">
+                            <td class="px-6 py-4"><a href="/api/logs/${file.name}" class="text-indigo-400 hover:underline">${file.name}</a></td>
+                            <td class="px-6 py-4">${formatBytes(file.size)}</td>
+                            <td class="px-6 py-4">${new Date(file.modified * 1000).toLocaleString()}</td>
+                        </tr>
+                    `;
+                    tableBody.innerHTML += row;
+                });
+            } catch (error) {
+                const tableBody = document.getElementById('log-files-body');
+                tableBody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-red-500">Error fetching log files.</td></tr>';
+            }
+        }
+
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
         }
 
         loadAllData();

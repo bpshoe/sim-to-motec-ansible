@@ -21,3 +21,5 @@
    guest ok = yes
    read only = no
    create mask = 0755
+   force user = {{ ansible_user }}
+   force group = {{ ansible_user }}
