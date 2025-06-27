@@ -4,6 +4,10 @@ from collections import namedtuple
 from datetime import datetime
 from copy import copy
 import logging
+import asyncio
+import json
+
+from .database import Database
 
 try:
     from salsa20 import Salsa20_xor
@@ -60,7 +64,9 @@ class GT7Logger(MoTeCWriter):
                 venue="", 
                 comment="",
                 shortcomment="",
-                imperial=False):
+                imperial=False,
+                manager=None,
+                db=None):
         super().__init__(filetemplate=filetemplate, imperial=imperial)
         self.sampler = sampler
         self.event = {
@@ -79,6 +85,60 @@ class GT7Logger(MoTeCWriter):
         self.track = None
         self.track_detector = None
         self.replay = replay
+        self.queue = asyncio.Queue()
+        self.manager = manager
+        self.db = db
+
+    async def _log_writer_task(self):
+        while True:
+            try:
+                timestamp, samples, is_lap = await self.queue.get()
+                if not is_lap:
+                    self.add_samples(timestamp, samples)
+                else:
+                    self.add_lap(samples['laptime'], samples['lap'])
+                self.queue.task_done()
+            except asyncio.CancelledError:
+                l.info("Log writer task cancelled.")
+                break
+            except Exception as e:
+                l.error(f"Error in log writer task: {e}")
+
+
+    async def _websocket_broadcaster_task(self):
+        while True:
+            try:
+                timestamp, samples, is_lap = await self.queue.get()
+                if not is_lap and self.manager:
+                    data = dict(zip([c.get('name', c) for c in self.channels], samples))
+                    data['timestamp'] = timestamp
+                    await self.manager.broadcast(json.dumps(data))
+                self.queue.task_done()
+            except asyncio.CancelledError:
+                l.info("WebSocket broadcaster task cancelled.")
+                break
+            except Exception as e:
+                l.error(f"Error in WebSocket broadcaster task: {e}")
+
+    async def _db_writer_task(self):
+        while True:
+            try:
+                timestamp, samples, is_lap = await self.queue.get()
+                if is_lap and self.db:
+                    session_data = {
+                        "driver": self.event.get("driver", ""),
+                        "vehicle": self.event.get("vehicle", ""),
+                        "venue": self.event.get("venue", ""),
+                        "session": self.event.get("session", ""),
+                        "best_lap": samples['laptime']
+                    }
+                    self.db.insert_session(session_data)
+                self.queue.task_done()
+            except asyncio.CancelledError:
+                l.info("DB writer task cancelled.")
+                break
+            except Exception as e:
+                l.error(f"Error in DB writer task: {e}")
 
     def get_latest_data(self):
         if self.last_packet:
@@ -151,7 +211,7 @@ class GT7Logger(MoTeCWriter):
         if currp.current_lap > lastp.current_lap:
             beacon = 1
             laptime = currp.last_laptime / 1000.0
-            self.add_lap(laptime=laptime, lap=lastp.current_lap)
+            self.queue.put_nowait((timestamp, {"laptime": laptime, "lap": lastp.current_lap}, True))
 
         if (currp.tick % 1000) == 0 or new_log:
             l.info(
@@ -179,7 +239,7 @@ class GT7Logger(MoTeCWriter):
         else:
             fuel_level = 0
 
-        self.add_samples([
+        samples = [
             beacon,
             currp.current_lap,
             currp.rpm,
@@ -189,7 +249,7 @@ class GT7Logger(MoTeCWriter):
             currp.clutch * 100 / 255,
             0, # steer
             currp.speed * ms_to_speed,
-            lat, long = gps.convert(x=currp.position[0], z=-currp.position[2])
+            0,0, # lat, long
             0,0,0, # velx, vely, velz
             0,0,0, # glat, gvert, glong
             *[p * 100 for p in currp.suspension],
@@ -203,7 +263,8 @@ class GT7Logger(MoTeCWriter):
             fuel_level,
             1 if currp.asm_active else 0,
             1 if currp.tcs_active else 0
-        ])
+        ]
+        self.queue.put_nowait((timestamp, samples, False))
 
 class GT7DataPacket:
     fmt = struct.Struct(

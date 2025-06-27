@@ -1,18 +1,88 @@
-from flask import Flask, jsonify, request, send_from_directory
-from flask_cors import CORS
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 import subprocess
 import json
 import os
+from typing import List
+import asyncio
 
-app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+from gt7.telemetry import GT7Logger
+from gt7.sampler import GT7Sampler
+from gt7.database import Database
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 SETTINGS_FILE = "/etc/motec/service_settings.json"
+DB_FILE = "/var/lib/motec/sessions.db"
 
-@app.route('/api/status')
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: str):
+        for connection in self.active_connections:
+            await connection.send_text(message)
+
+manager = ConnectionManager()
+
+# Create a database instance
+db = Database(db_file=DB_FILE)
+db.create_tables()
+
+# Load configuration
+with open(SETTINGS_FILE, 'r') as f:
+    settings = json.load(f)
+
+# Create a logger to process and save the data
+logger = GT7Logger(
+    imperial=settings.get("imperial", False),
+    driver=settings.get("driver", ""),
+    session=settings.get("session", ""),
+    vehicle=settings.get("vehicle", ""),
+    venue=settings.get("venue", ""),
+    manager=manager,
+    db=db
+)
+
+# Create a sampler to receive telemetry data
+sampler = GT7Sampler(addr=settings.get("ps_ip"), port=settings.get("port"))
+sampler.callback = lambda timestamp, sample: logger.process_sample(timestamp, sample)
+
+@app.on_event("startup")
+async def startup_event():
+    # Start the sampler
+    sampler.start()
+    # Start the consumer tasks
+    asyncio.create_task(logger._log_writer_task())
+    asyncio.create_task(logger._websocket_broadcaster_task())
+    asyncio.create_task(logger._db_writer_task())
+
+@app.on_event("shutdown")
+def shutdown_event():
+    sampler.stop()
+    sampler.join()
+    logger.save_log()
+    db.close()
+
+@app.get("/api/status")
 def get_status():
     try:
-        # Use systemctl's machine-readable output
         result = subprocess.run(['sudo', 'systemctl', 'is-active', 'sim-to-motec.service'], capture_output=True, text=True)
         status_text = result.stdout.strip()
         is_active = status_text == 'active'
@@ -20,37 +90,38 @@ def get_status():
         with open(SETTINGS_FILE, 'r') as f:
             settings = json.load(f)
 
-        return jsonify({
+        return JSONResponse({
             'status': status_text,
             'is_active': is_active,
             'config': settings
         })
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return JSONResponse({'status': 'error', 'message': str(e)}, status_code=500)
 
-@app.route('/api/logs')
+@app.get("/api/logs")
 def get_logs():
     try:
         result = subprocess.run(['sudo', 'journalctl', '-u', 'sim-to-motec.service', '-n', '50', '--no-pager'], capture_output=True, text=True)
-        return jsonify({'logs': result.stdout})
+        return JSONResponse({'logs': result.stdout})
     except Exception as e:
-        return jsonify({'logs': f"Error fetching logs: {str(e)}"}), 500
+        return JSONResponse({'logs': f"Error fetching logs: {str(e)}"}, status_code=500)
 
-@app.route('/api/control', methods=['POST'])
-def control_service():
-    action = request.json.get('action')
+@app.post("/api/control")
+async def control_service(request: Request):
+    data = await request.json()
+    action = data.get('action')
     valid_actions = ['start', 'stop', 'restart']
     if action not in valid_actions:
-        return jsonify({'status': 'error', 'message': 'Invalid action'}), 400
+        return JSONResponse({'status': 'error', 'message': 'Invalid action'}, status_code=400)
     try:
         subprocess.run(['sudo', 'systemctl', action, 'sim-to-motec.service'], check=True)
-        return jsonify({'status': 'success', 'message': f'Service {action} command sent.'})
+        return JSONResponse({'status': 'success', 'message': f'Service {action} command sent.'})
     except subprocess.CalledProcessError as e:
-        return jsonify({'status': 'error', 'message': f'Failed to {action} service: {e.stderr}'}), 500
+        return JSONResponse({'status': 'error', 'message': f'Failed to {action} service: {e.stderr}'}, status_code=500)
 
-@app.route('/api/save_and_restart', methods=['POST'])
-def save_and_restart():
-    new_settings = request.json
+@app.post("/api/save_and_restart")
+async def save_and_restart(request: Request):
+    new_settings = await request.json()
     try:
         with open(SETTINGS_FILE, 'r') as f:
             config = json.load(f)
@@ -63,35 +134,19 @@ def save_and_restart():
             json.dump(config, f, indent=4)
         
         subprocess.run(['sudo', 'systemctl', 'restart', 'sim-to-motec.service'], check=True)
-        return jsonify({'status': 'success', 'message': 'Settings saved and service restarted.'})
+        return JSONResponse({'status': 'success', 'message': 'Settings saved and service restarted.'})
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return JSONResponse({'status': 'error', 'message': str(e)}, status_code=500)
 
-@app.route('/api/live_status')
+@app.get("/api/live_status")
 def get_live_status():
-    live_file = '/tmp/sim-to-motec-live.json'
-    if not os.path.exists(live_file):
-        return jsonify({'status': 'disconnected'})
+    return JSONResponse(logger.get_latest_data())
 
-    try:
-        with open(live_file, 'r') as f:
-            data = json.load(f)
-        # check if the file is older than 5 seconds
-        if os.path.getmtime(live_file) < (os.path.getmtime(live_file) - 5):
-            return jsonify({'status': 'disconnected'})
-        data['status'] = 'connected'
-        return jsonify(data)
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port={{ webapp_port | int }})
-
-@app.route('/api/logs', methods=['GET'])
+@app.get("/api/logs_files")
 def list_logs():
     log_dir = '{{ app_dest }}/logs/{{ sim_type }}'
     if not os.path.exists(log_dir):
-        return jsonify([])
+        return JSONResponse([])
     
     log_files = [f for f in os.listdir(log_dir) if f.endswith('.ld')]
     
@@ -106,10 +161,30 @@ def list_logs():
     
     sorted_files = sorted(files_with_details, key=lambda k: k['modified'], reverse=True)
     
-    return jsonify(sorted_files)
+    return JSONResponse(sorted_files)
 
-@app.route('/api/logs/<filename>', methods=['GET'])
-def download_log(filename):
+@app.get("/api/sessions")
+def get_sessions():
+    return JSONResponse(db.get_sessions())
+
+@app.get("/api/logs/{filename}")
+def download_log(filename: str):
     log_dir = '{{ app_dest }}/logs/{{ sim_type }}'
-    return send_from_directory(log_dir, filename, as_attachment=True)
+    file_path = os.path.join(log_dir, filename)
+    if os.path.exists(file_path):
+        return FileResponse(file_path, media_type='application/octet-stream', filename=filename)
+    return JSONResponse({'status': 'error', 'message': 'File not found'}, status_code=404)
 
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+            # We don't expect messages from the client, just broadcasting
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port={{ webapp_port | int }})
