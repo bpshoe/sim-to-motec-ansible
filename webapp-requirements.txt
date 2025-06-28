@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+pyyaml
+python-multipart
+salsa20
+cantools
+numpy
+ldparser

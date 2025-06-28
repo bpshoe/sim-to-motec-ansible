@@ -1,7 +1,7 @@
 import datetime
 import numpy as np
 import struct
-from data_log import DataLog, Message, Channel
+from .data_log import DataLog, Message, Channel
 from ldparser.ldparser import ldVehicle, ldVenue, ldEvent, ldHead, ldChan, ldData
 
 class MotecLog(object):

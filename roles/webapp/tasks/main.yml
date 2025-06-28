@@ -13,12 +13,13 @@
   ansible.builtin.command:
     cmd: "python3 -m venv {{ api_venv_path }}"
     creates: "{{ api_venv_path }}/bin/pip"
-- name: "WEBAPP | Install Flask and CORS into venv"
+- name: "WEBAPP | Copy webapp requirements file"
+  ansible.builtin.copy:
+    src: webapp-requirements.txt
+    dest: "{{ api_dest }}/requirements.txt"
+- name: "WEBAPP | Install Python dependencies from requirements file"
   ansible.builtin.pip:
-    name:
-      - flask
-      - flask-cors
-      - pyyaml
+    requirements: "{{ api_dest }}/requirements.txt"
     executable: "{{ api_venv_path }}/bin/pip3"
 - name: "WEBAPP | Create initial runtime settings file"
   ansible.builtin.template:
@@ -27,10 +28,18 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: '0664'
-- name: "WEBAPP | Copy Flask API script"
+- name: "WEBAPP | Copy API script"
   ansible.builtin.template:
     src: api.py.j2
     dest: "{{ api_dest }}/api.py"
+- name: "WEBAPP | Copy GT7 support library"
+  ansible.builtin.copy:
+    src: gt7
+    dest: "{{ api_dest }}"
+- name: "WEBAPP | Copy STM support library"
+  ansible.builtin.copy:
+    src: stm
+    dest: "{{ api_dest }}"
 - name: "WEBAPP | Copy web UI file to web root"
   ansible.builtin.template:
     src: index.html.j2

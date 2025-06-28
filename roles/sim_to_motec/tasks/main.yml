@@ -20,7 +20,7 @@
     creates: "{{ venv_path }}/bin/pip"
 - name: "SIM2MOTEC | Install Python dependencies into venv (excluding GUI)"
   ansible.builtin.shell:
-    cmd: "grep -v 'PySimpleGUI' {{ app_dest }}/requirements.txt | {{ venv_path }}/bin/pip3 install -r /dev/stdin"
+    cmd: "grep -v 'PySimpleGUI\|pyinstaller' {{ app_dest }}/requirements.txt | {{ venv_path }}/bin/pip3 install -r /dev/stdin"
     creates: "{{ venv_path }}/lib/python3.11/site-packages/salsa20"
 - name: "SIM2MOTEC | Set ownership of application directory"
   ansible.builtin.file:

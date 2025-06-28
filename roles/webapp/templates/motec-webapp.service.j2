@@ -6,8 +6,8 @@ After=network.target
 User={{ ansible_user }}
 Group={{ ansible_user }}
 WorkingDirectory={{ api_dest }}
-Environment="FLASK_APP=api.py"
-ExecStart={{ api_venv_path }}/bin/flask run --host=127.0.0.1 --port=5000
+
+ExecStart={{ api_venv_path }}/bin/uvicorn api:app --host 127.0.0.1 --port 5000
 Restart=always
 
 [Install]
