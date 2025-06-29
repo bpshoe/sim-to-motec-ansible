@@ -1,3 +1,4 @@
+---
 - name: Restart samba services
   ansible.builtin.service:
     name: "{{ item }}"

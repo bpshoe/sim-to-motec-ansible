@@ -1,46 +1,55 @@
-- name: "SIM2MOTEC | Clone or update repository from GitHub"
+---
+- name: SIM2MOTEC | Clone or update repository from GitHub
   ansible.builtin.git:
     repo: "{{ app_repo }}"
     dest: "{{ app_dest }}"
     version: main
-    force: yes
-- name: "SIM2MOTEC | Create log directories"
+    force: true
+- name: SIM2MOTEC | Create log directories
   ansible.builtin.file:
     path: "{{ app_dest }}/logs/{{ item }}"
     state: directory
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-    mode: '0755'
+    mode: "0755"
   loop:
     - gt7
     - ams2
-- name: "SIM2MOTEC | Create Python virtual environment"
+- name: SIM2MOTEC | Create Python virtual environment
   ansible.builtin.command:
-    cmd: "python3 -m venv {{ venv_path }}"
-    creates: "{{ venv_path }}/bin/pip"
-- name: "SIM2MOTEC | Install Python dependencies into venv (excluding GUI)"
-  ansible.builtin.shell:
-    cmd: "grep -v 'PySimpleGUI\|pyinstaller' {{ app_dest }}/requirements.txt | {{ venv_path }}/bin/pip3 install -r /dev/stdin"
+    cmd: python3 -m venv {{ venv_path }}
+    creates: "{{ venv_path }}/bin/pip" 
+
+- name: SIM2MOTEC | Install Python dependencies into venv (excluding GUI)
+  ansible.builtin.shell: |
+    set -o pipefail
+    set -x
+    grep -v 'PySimpleGUI\|pyinstaller' {{ app_dest }}/requirements.txt | {{ venv_path }}/bin/pip3 install -r /dev/stdin
+  args:
+    executable: /bin/bash
     creates: "{{ venv_path }}/lib/python3.11/site-packages/salsa20"
-- name: "SIM2MOTEC | Set ownership of application directory"
+  changed_when: false
+
+- name: SIM2MOTEC | Set ownership of application directory
   ansible.builtin.file:
     path: "{{ app_dest }}"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-    recurse: yes
-- name: "SIM2MOTEC | Create wrapper script for logger"
+    recurse: true
+- name: SIM2MOTEC | Create wrapper script for logger
   ansible.builtin.template:
-    src: "run_motec_logger.sh.j2"
-    dest: "/usr/local/bin/run_motec_logger.sh"
+    src: run_motec_logger.sh.j2
+    dest: /usr/local/bin/run_motec_logger.sh
     mode: "0755"
-- name: "SIM2MOTEC | Create systemd service file"
+- name: SIM2MOTEC | Create systemd service file
   ansible.builtin.template:
-    src: "sim-to-motec.service.j2"
-    dest: "/etc/systemd/system/sim-to-motec.service"
-    force: yes
-- name: "SIM2MOTEC | Ensure sim-to-motec service is enabled and started"
+    src: sim-to-motec.service.j2
+    dest: /etc/systemd/system/sim-to-motec.service
+    force: true
+    mode: "0644"
+- name: SIM2MOTEC | Ensure sim-to-motec service is enabled and started
   ansible.builtin.systemd:
     name: sim-to-motec.service
-    daemon_reload: yes
-    enabled: yes
+    daemon_reload: true
+    enabled: true
     state: started

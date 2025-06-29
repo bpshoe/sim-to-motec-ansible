@@ -1,41 +1,42 @@
-- name: "COMMON | Set hostname"
+---
+- name: COMMON | Set hostname
   ansible.builtin.hostname:
     name: "{{ new_hostname }}"
-- name: "COMMON | Ensure hostname is in /etc/hosts"
+- name: COMMON | Ensure hostname is in /etc/hosts
   ansible.builtin.lineinfile:
     path: /etc/hosts
-    regexp: '^127\.0\.1\.1.*'
+    regexp: ^127\.0\.1\.1.*
     line: "127.0.1.1\t{{ new_hostname }}"
-- name: "COMMON | Set timezone"
+- name: COMMON | Set timezone
   community.general.timezone:
     name: "{{ timezone }}"
-- name: "COMMON | Update apt cache and install essential packages"
+- name: COMMON | Update apt cache and install essential packages
   ansible.builtin.apt:
     name: [ufw, fail2ban, git, python3-venv, python3-dev, tcpdump, samba, nginx, python3-flask, python3-yaml, jq, python3-flask-cors]
     state: present
-    update_cache: yes
-- name: "COMMON | Allow standard SSH port through firewall"
+    update_cache: true
+- name: COMMON | Allow standard SSH port through firewall
   community.general.ufw:
     rule: allow
     port: "22"
     proto: tcp
-- name: "COMMON | Allow Samba ports through firewall"
-  ansible.builtin.ufw:
+- name: COMMON | Allow Samba ports through firewall
+  community.general.ufw:
     rule: allow
     port: "{{ item }}"
   loop:
     - "139"
     - "445"
-- name: "COMMON | Allow Webapp port through firewall"
-  ansible.builtin.ufw:
+- name: COMMON | Allow Webapp port through firewall
+  community.general.ufw:
     rule: allow
     port: "{{ webapp_port }}"
     proto: tcp
-- name: "COMMON | Enable firewall"
+- name: COMMON | Enable firewall
   community.general.ufw:
     state: enabled
-- name: "COMMON | Install status script on the Pi"
+- name: COMMON | Install status script on the Pi
   ansible.builtin.template:
-    src: "status.sh.j2"
-    dest: "/usr/local/bin/status.sh"
+    src: status.sh.j2
+    dest: /usr/local/bin/status.sh
     mode: "0755"

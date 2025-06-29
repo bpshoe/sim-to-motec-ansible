@@ -1,3 +1,4 @@
-app_repo: "https://github.com/GeekyDeaks/sim-to-motec.git"
-app_dest: "/opt/sim-to-motec"
+---
+app_repo: https://github.com/GeekyDeaks/sim-to-motec.git
+app_dest: /opt/sim-to-motec
 venv_path: "{{ app_dest }}/venv"

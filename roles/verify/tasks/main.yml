@@ -1,24 +1,25 @@
-- name: "VERIFY | Pause for services to fully start"
+---
+- name: VERIFY | Pause for services to fully start
   ansible.builtin.pause:
     seconds: 10
-- name: "VERIFY | Check if webapp is responding"
+- name: VERIFY | Check if webapp is responding
   ansible.builtin.uri:
-    url: "http://{{ target_ip }}:{{ webapp_port }}/"
+    url: http://{{ target_ip }}:{{ webapp_port }}/
     method: GET
   register: webapp_status
-- name: "VERIFY | Check that the web UI is being served"
+- name: VERIFY | Check that the web UI is being served
   ansible.builtin.assert:
     that:
       - webapp_status.status == 200
     success_msg: "SUCCESS: Web UI is online and reachable."
     fail_msg: "ERROR: Verification failed. Could not reach the web UI."
-- name: "VERIFY | Check that the API reports the logger is running"
+- name: VERIFY | Check that the API reports the logger is running
   ansible.builtin.uri:
-    url: "http://{{ target_ip }}:{{ webapp_port }}/api/status"
+    url: http://{{ target_ip }}:{{ webapp_port }}/api/status
     method: GET
-    return_content: yes
+    return_content: true
   register: api_status
-- name: "VERIFY | Check API response"
+- name: VERIFY | Check API response
   ansible.builtin.assert:
     that:
       - api_status.status == 200

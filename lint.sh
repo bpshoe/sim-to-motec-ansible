@@ -1,3 +1,3 @@
 #!/bin/bash
 
-ansible-lint
+ansible-lint --fix
