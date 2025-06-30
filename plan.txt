@@ -1,0 +1,117 @@
+MoTeC Automator: Master Implementation Plan
+This document consolidates all discussed features, bug fixes, and architectural changes into a final, comprehensive blueprint for the MoTeC Automator appliance.
+
+Part 1: Core User Experience & Architecture
+This section addresses the fundamental usability and setup pain points by replacing complex cloud dependencies with a simpler, more robust local-network approach.
+
+Feature: Local Network File Share (Samba)
+
+Action: The rclone role and all Google Drive functionality will be completely removed. It will be replaced by a new samba role.
+
+Functionality: The playbook will install and configure Samba to create a password-free network share named motec_logs, pointing to the application's log directory (/opt/sim-to-motec/logs).
+
+Benefit: Permanently eliminates the complex Google Cloud setup process. Users will access logs directly via their native file explorer (e.g., \\race-pi on Windows).
+
+Feature: Full-Featured Web Control Panel
+
+Action: A new webapp role will install and configure nginx and a Flask API backend to serve a web interface.
+
+Functionality: The UI will provide full control over the logger service, including:
+
+Service Control: Buttons to Start, Stop, and Restart the service.
+
+Dynamic Configuration: A form to update runtime parameters (Driver, Session, Replay Mode, etc.) which are saved to a dedicated configuration file on the Pi (/etc/motec/service_settings.json).
+
+Benefit: Eliminates the need for SSH for all routine operations, providing a user-friendly "cockpit" for the appliance.
+
+Part 2: Advanced Functionality & Flexibility
+This section details the features that make the appliance more powerful and adaptable to different use cases.
+
+Feature: Multi-Simulator Support
+
+Action: The config.yml file and the service startup logic will be made dynamic.
+
+Functionality: A sim_type variable in config.yml will allow the user to switch between "gt7" and "ams2". The system will automatically select the correct Python script to run (gt7-cli.py or ams2-cli.py) and open the appropriate firewall ports.
+
+Benefit: Transforms the project into a universal telemetry logger.
+
+Feature: Enhanced Configuration Options
+
+Action: The config.yml file and the service startup script will be updated.
+
+Functionality: New boolean flags (replay, save_raw_telemetry) will be added to the configuration, allowing users to easily enable or disable these features.
+
+Benefit: Provides power-user control over the logger's behavior directly from the main configuration file.
+
+Part 3: Diagnostics & Troubleshooting
+This section focuses on making the system transparent and easy to debug, both for the end-user and for future development.
+
+Feature: Advanced On-Pi Diagnostic Script
+
+Action: A comprehensive diagnostic script, status.sh, will be created and installed at /usr/local/bin/ on the Pi.
+
+Functionality: Based on your excellent command, this script will provide a full system health report, including the status of all services, recent logs, network listeners, and system resource usage.
+
+Benefit: Provides a single, powerful command for deep troubleshooting via SSH.
+
+Feature: Integrated Web-Based Diagnostics
+
+Action: The web UI and backend API will be enhanced.
+
+Functionality:
+
+A "Run Full Diagnostics" button will be added to the web UI, which executes the status.sh script and displays the complete, formatted output directly in the browser.
+
+The "Service Status" panel will be enhanced to show the exact ExecStart command the service is running with, providing immediate confirmation that configuration changes have been applied.
+
+Benefit: Centralizes all monitoring and troubleshooting into the web interface, making it the primary tool for managing the appliance.
+
+Part 4: Code Quality & Idempotency
+This section addresses all identified bugs and linting issues to ensure the playbook is robust, reliable, and self-healing.
+
+Samba Role: The smb.conf template task will have an explicit file mode set to 0644 to ensure correct permissions. The nmbd service will be correctly enabled alongside smbd to ensure network discovery works reliably.
+
+Sim-to-MoTeC Role:
+
+The git clone task will be made fully idempotent by checking for and removing a broken, non-git directory before cloning, allowing the playbook to recover from a previously failed state.
+
+The pip install command will be corrected to remove the incompatible set -o pipefail directive.
+
+Webapp Role:
+
+The nginx configuration will be corrected to properly serve the index.html file as the root and proxy API calls to the Flask backend.
+
+The Flask API will be corrected to handle CORS errors and to correctly implement the /api/logs endpoint.
+
+The sudo permissions will be corrected to match the user running the web application service.
+
+All service management tasks will use explicit restarted or reloaded states to ensure configuration changes are always applied, rather than relying on notify.
+
+Part 5: Deployment Performance Optimization
+This section outlines strategies to make the Ansible deployment significantly faster and more efficient, ensuring changes are applied almost instantly.
+
+Feature: SSH Connection Multiplexing
+
+Action: The ansible.cfg file will be configured to use SSH ControlMaster settings.
+
+Functionality: This creates a persistent master SSH connection that subsequent tasks can reuse. It eliminates the overhead of establishing a new SSH connection for every single task in the playbook.
+
+Benefit: Dramatically reduces playbook execution time, especially for playbooks with many small tasks. This is the single biggest performance gain for this type of project.
+
+Feature: Ansible Pipelining
+
+Action: Pipelining will be enabled in the ansible.cfg file.
+
+Functionality: Instead of creating multiple SSH connections to transfer the Ansible module, execute it, and then remove it, pipelining sends the module directly to the remote shell's standard input.
+
+Benefit: Reduces the number of required SSH operations from three to one for most modules, providing a significant speed boost.
+
+Feature: Fact Caching
+
+Action: Fact caching will be enabled in ansible.cfg using the jsonfile backend.
+
+Functionality: Ansible "gathers facts" (collects information about the remote system) at the start of every playbook run. This can be time-consuming. Fact caching saves this information to a file on the control node. On subsequent runs, if the cache is still valid, Ansible will use the cached facts instead of gathering them again.
+
+Benefit: Skips the entire "Gathering Facts" step on most runs, saving 5-15 seconds per execution.
+
+This master plan represents a complete vision for the project. Please confirm if this has your final approval to proceed with the implementation.

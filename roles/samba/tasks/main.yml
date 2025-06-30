@@ -3,6 +3,7 @@
   ansible.builtin.template:
     src: smb.conf.j2
     dest: /etc/samba/smb.conf
+    mode: "0644"
   notify: Restart samba services
 - name: SAMBA | Ensure Samba services are enabled and started
   ansible.builtin.systemd:

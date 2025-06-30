@@ -1,7 +1,0 @@
-[Unit]
-Description=Rclone Upload Service for MoTeC Logs
-
-[Service]
-Type=oneshot
-User={{ ansible_user }}
-ExecStart=/usr/local/bin/upload_logs.sh

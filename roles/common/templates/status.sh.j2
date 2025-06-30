@@ -1,26 +1,64 @@
 #!/bin/bash
-# This script provides a health check for the MoTeC Automator services.
+# This script provides a comprehensive health check for the MoTeC Automator services.
+
 # Define Colors
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
+
 echo -e "${CYAN}--- MoTeC Automator Status Dashboard ---${NC}"
-echo -e "\n${YELLOW}[1] Checking Logger Service (sim-to-motec)...${NC}"
+
+# Function to print a formatted header
+print_header() {
+    echo -e "\n${YELLOW}[$1] $2...${NC}"
+}
+
+# 1. Logger Service Status
+print_header "1" "Logger Service (sim-to-motec)"
 sudo systemctl status sim-to-motec.service --no-pager
-echo -e "\n${YELLOW}[2] Last 5 Lines of Logger Service Log...${NC}"
-sudo journalctl -u sim-to-motec.service -n 5 --no-pager
-echo -e "\n${YELLOW}[3] Checking Web Control Panel API...${NC}"
+
+# 2. ExecStart Command
+print_header "2" "Logger Service ExecStart Command"
+SYSTEMD_FILE=$(sudo systemctl status sim-to-motec.service | grep -oE '/etc/systemd/system/sim-to-motec.service')
+if [ -n "$SYSTEMD_FILE" ]; then
+    grep 'ExecStart=' $SYSTEMD_FILE | sed 's/ExecStart=//'
+else
+    echo -e "${RED}Could not determine systemd file path.${NC}"
+fi
+
+# 3. Last 10 Lines of Logger Service Log
+print_header "3" "Last 10 Lines of Logger Service Log"
+sudo journalctl -u sim-to-motec.service -n 10 --no-pager
+
+# 4. Web Control Panel API Status
+print_header "4" "Web Control Panel API (motec-webapp)"
 sudo systemctl status motec-webapp.service --no-pager
-echo -e "\n${YELLOW}[4] Checking Nginx Web Server...${NC}"
+
+# 5. Nginx Web Server Status
+print_header "5" "Nginx Web Server"
 sudo systemctl status nginx.service --no-pager
-echo -e "\n${YELLOW}[5] Checking Samba File Share...${NC}"
+
+# 6. Samba File Share Status
+print_header "6" "Samba File Share (smbd)"
 sudo systemctl status smbd.service --no-pager
-echo -e "\n${YELLOW}[6] Current Runtime Settings (/etc/motec/service_settings.json)...${NC}"
+
+# 7. Network Listeners
+print_header "7" "Network Listeners (UDP for GT7, TCP for Web)"
+sudo ss -tulpn | grep -E ':(33739|{{ webapp_port }})'
+
+# 8. System Resource Usage
+print_header "8" "System Resource Usage"
+free -h
+df -h / | tail -n 1
+
+# 9. Current Runtime Settings
+print_header "9" "Current Runtime Settings (/etc/motec/service_settings.json)"
 if [ -f "/etc/motec/service_settings.json" ]; then
     jq . /etc/motec/service_settings.json
 else
     echo -e "${RED}Settings file not found.${NC}"
 fi
+
 echo -e "\n${CYAN}--- End of Status Report ---${NC}"

@@ -32,6 +32,12 @@
     rule: allow
     port: "{{ webapp_port }}"
     proto: tcp
+- name: COMMON | Allow GT7 telemetry port through firewall
+  community.general.ufw:
+    rule: allow
+    port: "33739"
+    proto: udp
+  when: sim_type == "gt7"
 - name: COMMON | Enable firewall
   community.general.ufw:
     state: enabled
