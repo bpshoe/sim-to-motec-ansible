@@ -40,11 +40,7 @@
     src: gt7
     dest: "{{ api_dest }}"
     mode: "0755"
-- name: WEBAPP | Copy STM support library
-  ansible.builtin.copy:
-    src: stm
-    dest: "{{ api_dest }}"
-    mode: "0755"
+
 - name: WEBAPP | Copy web UI file to web root
   ansible.builtin.template:
     src: index.html.j2

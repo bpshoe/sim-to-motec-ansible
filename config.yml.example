@@ -1,21 +1,6 @@
-# Main configuration for the telemetry appliance
-# Copy this file to config.yml and edit the values.
-
-# === System Settings ===
-timezone: "America/New_York"
-new_hostname: "race-pi"
-
-# === Application Settings ===
-sim_type: "gt7" # "gt7" or "ams2". NOTE: ams2 support is untested.
-playstation_ip: "192.168.1.100" # Required for GT7 only.
-
-# === Webapp Settings ===
-webapp_port: 8080
-
-# === Optional Telemetry Flags (these can be changed via the web UI later) ===
-replay: true
-save_raw_telemetry: false
-driver: ""
-session: ""
-vehicle: ""
-venue: ""
+ps_ip: "192.168.1.42"
+ports:
+  heartbeat: 33739
+  telemetry: 33740
+heartbeat_interval: 1.5
+log_output_path: "./logs/session.ld"

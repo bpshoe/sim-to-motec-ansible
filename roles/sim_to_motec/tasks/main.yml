@@ -35,6 +35,7 @@
   ansible.builtin.shell: |
     set -x
     grep -v 'PySimpleGUI\|pyinstaller' {{ app_dest }}/requirements.txt | {{ venv_path }}/bin/pip3 install -r /dev/stdin
+    {{ venv_path }}/bin/pip3 install pyyaml pycryptodome ldfparser
   args:
     executable: /bin/bash
     creates: "{{ venv_path }}/lib/python3.11/site-packages/salsa20"

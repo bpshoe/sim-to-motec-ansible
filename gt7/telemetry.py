@@ -10,10 +10,14 @@ import json
 from .database import Database
 
 try:
-    from salsa20 import Salsa20_xor
+    from Crypto.Cipher import Salsa20
 except ImportError:
-    print("salsa20 library not found. Please install it using: pip install salsa20")
-    exit()
+    try:
+        from salsa20 import Salsa20_xor as Salsa20
+    except ImportError:
+        raise RuntimeError("Missing dependency 'salsa20' or 'pycryptodome'. Run 'pip install salsa20' or 'pip install pycryptodome'")
+
+
 
 from .motec.writer import MoTeCWriter
 from .sampler import GT7Sampler
@@ -378,7 +382,7 @@ class GT7DataPacket:
         IV = bytearray()
         IV.extend(iv2.to_bytes(4, 'little'))
         IV.extend(iv1.to_bytes(4, 'little'))
-        ddata = Salsa20_xor(dat, bytes(IV), KEY[0:32])
+        ddata = Salsa20.new(key=KEY[0:32], nonce=bytes(IV)).decrypt(dat)
 
         magic = int.from_bytes(ddata[0:4], byteorder='little')
         if magic != 0x47375330:

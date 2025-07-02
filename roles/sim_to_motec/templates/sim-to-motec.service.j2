@@ -3,6 +3,7 @@ Description=Sim-to-MoTeC Telemetry Logger
 After=network-online.target
 
 [Service]
+Environment=PYTHONPATH={{ app_dest }}
 User={{ ansible_user }}
 Group={{ ansible_user }}
 Type=simple

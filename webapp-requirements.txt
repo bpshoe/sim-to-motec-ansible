@@ -5,4 +5,4 @@ python-multipart
 salsa20
 cantools
 numpy
-ldfparser
+pandas
