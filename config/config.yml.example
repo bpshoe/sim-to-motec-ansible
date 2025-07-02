@@ -1,0 +1,6 @@
+ps_ip: "192.168.1.42"
+ports:
+  heartbeat: 33739
+  telemetry: 33740
+heartbeat_interval: 1.5
+log_output_path: "./logs/session.ld"

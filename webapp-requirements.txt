@@ -6,3 +6,4 @@ salsa20
 cantools
 numpy
 pandas
+motec-log-generator @ git+https://github.com/stevendaniluk/MotecLogGenerator.git

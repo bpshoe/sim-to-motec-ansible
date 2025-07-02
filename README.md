@@ -1,53 +1,60 @@
-# MoTeC Automator
+# GT7 MoTeC Telemetry Logger
 
-This Ansible project automates the setup and configuration of a Raspberry Pi as a dedicated telemetry logger for `sim-to-motec`. It installs the application in a secure virtual environment and makes logs available via a simple network share. A web-based control panel allows for easy management of the service without needing to use the command line.
+This project provides a complete pipeline for capturing Gran Turismo 7 (GT7) telemetry data, processing it, and exporting it to MoTeC .ld files for professional analysis.
 
-## Features
+## Architecture
 
--   **Automated Setup:** Configures a Raspberry Pi into a dedicated telemetry appliance.
--   **Web Control Panel:** Start, stop, restart, and configure the logger from a simple web page hosted on the Pi. Includes a live log viewer for easy troubleshooting.
--   **Samba File Share:** Access your log files easily over the network at `\\race-pi\logs`.
--   **Multi-Sim Support:** Easily switch between `gt7` (Gran Turismo 7) and `ams2` (Automobilista 2) via a simple configuration change.
--   **On-Pi Status Script:** Includes a `status.sh` command for convenient terminal-based debugging.
--   **Automated Verification:** The playbook finishes with a self-test to confirm all services are running correctly.
+The system consists of the following components:
 
----
+- **UDP Listener:** Receives telemetry data packets from the PlayStation console.
+- **Decryptor:** Decrypts the incoming data packets.
+- **Parser:** Parses the decrypted data into a structured format.
+- **Pandas DataFrame:** The parsed data is loaded into a pandas DataFrame for efficient manipulation.
+- **MoTeC Log Generator:** The DataFrame is then used to generate a MoTeC .ld file.
+- **FastAPI Backend:** A simple web backend provides a health check endpoint.
 
-## Quick Start Guide
+## Prerequisites
 
-### Step 1: Create and Edit Local Configuration
+- Python 3.9+
+- A Raspberry Pi or other Linux-based system
 
-The `setup.sh` script is designed to be run twice initially.
+## Setup
 
-```bash
-chmod +x setup.sh
-./setup.sh
-```
+1. **Create a virtual environment:**
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   ```
 
-The first time, it will create your local configuration files (`inventory.ini`, `config.yml`).
+2. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-1.  **Edit `inventory.ini`:** Open this file and set your Raspberry Pi's IP address. You can also change the `ansible_user` if it's different from the default `pi`.
-2.  **Edit `config.yml`:** Open this file and review the settings. You can set initial/default values for the logger here. These can be changed later via the web interface.
+3. **Configure the logger:**
+   Copy `config.yml.example` to `config.yml` and edit the values to match your setup.
 
-### Step 2: Run the Setup
+## Usage
 
-Run the script again to provision the Raspberry Pi. The script will prompt for the SSH password of the user you defined in `inventory.ini`.
+- **Run the logger:**
+  ```bash
+  python gt7.py
+  ```
 
-```bash
-./setup.sh
-```
+- **Check the backend health:**
+  ```bash
+  curl http://localhost:8000/health
+  ```
 
----
+## Output Files
 
-## Post-Installation Usage
+The generated .ld files will be saved to the path specified in `config.yml`.
 
-### Accessing the Web Control Panel
-Once the setup is complete, open a web browser on your PC or Mac and navigate to:
-`http://<your_pi_ip_address>:8080` (e.g., `http://10.0.0.5:8080`)
+## Sample Data
 
-Use the web panel to change the Driver, Session, and Replay mode, then click "Save & Restart" to apply them.
+The `samples/` directory contains sample data packets that can be used for testing and development.
 
-### Accessing Your Log Files
-1.  Open **File Explorer** on Windows or **Finder** on Mac.
-2.  In the address bar, go to `\\race-pi` (Windows) or `smb://race-pi.local` (Mac).
-3.  Open the `motec_logs` folder to find your `.ld` files.
+## Troubleshooting
+
+- **`ModuleNotFoundError`:** If you encounter this error, make sure you have installed all the dependencies in `requirements.txt`.
+- **No UDP data:** Ensure that your PlayStation and the system running the logger are on the same network and that the IP address in `config.yml` is correct.
