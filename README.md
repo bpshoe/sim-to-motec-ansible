@@ -55,9 +55,9 @@ The generated .ld files will be saved to the path specified in `config.yml`.
 
 The `samples/` directory contains sample data packets that can be used for testing and development.
 
-## Removed
+## Post-Deploy Health Check
 
-The legacy CLI scripts `gt7-cli.py` and `ams2-cli.py` have been removed in favor of the new async/plugin pipeline.
+After a successful Ansible deployment, a quick health check is automatically run. If this check fails, a more detailed diagnostic script is executed to help troubleshoot the issue.
 
 - **`ModuleNotFoundError`:** If you encounter this error, make sure you have installed all the dependencies in `requirements.txt`.
 - **No UDP data:** Ensure that your PlayStation and the system running the logger are on the same network and that the IP address in `config.yml` is correct.

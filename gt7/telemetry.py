@@ -6,6 +6,9 @@ from copy import copy
 import logging
 import asyncio
 import json
+import sys
+import pandas as pd
+import os
 
 from .database import Database
 
@@ -17,14 +20,18 @@ except ImportError:
     except ImportError:
         raise RuntimeError("Missing dependency 'salsa20' or 'pycryptodome'. Run 'pip install salsa20' or 'pip install pycryptodome'")
 
-
-
 from gt7.writer.motec_exporter import export_to_ld
 from .sampler import GT7Sampler
 
 l = logging.getLogger(__name__)
 
 Wheels = namedtuple("Wheels", ["fl", "fr", "rl", "rr"])
+
+def handle_uncaught(exc_type, exc_value, _):
+    print(f"[CRITICAL ERROR] {exc_value}")
+    sys.exit(1)
+
+sys.excepthook = handle_uncaught
 
 class Flags(Enum):
     IN_RACE = 0b0000000000000001
@@ -70,7 +77,8 @@ class GT7Logger:
                 shortcomment="",
                 imperial=False,
                 manager=None,
-                db=None):
+                db=None,
+                config=None):
         
         self.sampler = sampler
         self.event = {
@@ -92,9 +100,8 @@ class GT7Logger:
         self.queue = asyncio.Queue()
         self.manager = manager
         self.db = db
-
-    
-
+        self.config = config
+        self.samples = []
 
     async def _websocket_broadcaster_task(self):
         while True:
@@ -162,26 +169,123 @@ class GT7Logger:
 
     def process_packet(self, timestamp, packet):
         try:
-            # This is a placeholder for the full decryption and parsing pipeline
-            # For now, we'll create a dummy dataframe
-            data = {
-                'timestamp': [0, 0.01, 0.02],
-                'throttle': [0, 10, 50],
-                'brake': [100, 90, 20]
-            }
-            df = pd.DataFrame(data)
+            beacon = 0
+            new_log = False
 
+            lastp = self.last_packet
+            currp = packet
+
+            freq = self.sampler.freq if self.sampler else 60
+
+            if currp.paused:
+                return
+
+            if not currp.in_race and not self.replay:
+                self.save_log()
+                return
+            
+            if currp.current_lap < lastp.current_lap:
+                self.save_log()
+
+            if not self.samples:
+                new_log = True
+                self.skip_samples = 3
+                then = datetime.fromtimestamp(timestamp)
+                
+                event = copy(self.event)
+                event['datetime'] = then.strftime("%Y-%m-%dT%H:%M:%S")
+
+                if not currp.in_race and not event['session']:
+                    event['session'] = "Replay"
+
+                self.current_event = event
+
+            if self.skip_samples > 0:
+                l.info(f"skipping tick {currp.tick}")
+                self.skip_samples -= 1
+                return
+
+            if currp.current_lap > lastp.current_lap:
+                beacon = 1
+                laptime = currp.last_laptime / 1000.0
+                self.queue.put_nowait((timestamp, {"laptime": laptime, "lap": lastp.current_lap}, True))
+
+            if (currp.tick % 1000) == 0 or new_log:
+                l.info(
+                    f"{timestamp:13.3f} tick: {currp.tick:6}"
+                    f" {currp.current_lap:2}/{currp.laps:2}"
+                    f" {currp.position[0]:10.5f} {currp.position[1]:10.5f} {currp.position[2]:10.5f}"
+                    f" {currp.best_laptime:6}/{currp.last_laptime:6}"
+                    f" {currp.race_position:3}/{currp.opponents:3}"
+                    f" {currp.gear} {currp.throttle:3} {currp.brake:3} {currp.speed:3.0f}"
+                    f" {currp.car_code:5}"
+                )
+
+            if self.imperial:
+                ms_to_speed = 2.23693629 # m/s to mph
+            else:
+                ms_to_speed = 3.6  # m/s to kph
+
+            if currp.in_race:
+                wheelspeed = [ r * s * -ms_to_speed for r,s in zip(currp.wheelradius, currp.wheelspeed) ]
+            else:
+                wheelspeed = [ r * s * ms_to_speed for r,s in zip(currp.wheelradius, currp.wheelspeed) ]
+
+            if currp.fuel_capacity > 0:
+                fuel_level = currp.current_fuel / currp.fuel_capacity * 100.0
+            else:
+                fuel_level = 0
+
+            row = [
+                beacon,
+                currp.current_lap,
+                currp.rpm,
+                currp.gear,
+                currp.throttle * 100 / 255,
+                currp.brake * 100 / 255,
+                currp.clutch * 100 / 255,
+                0, # steer
+                currp.speed * ms_to_speed,
+                0,0, # lat, long
+                0,0,0, # velx, vely, velz
+                0,0,0, # glat, gvert, glong
+                *[p * 100 for p in currp.suspension],
+                *wheelspeed,
+                *currp.tyretemp,
+                currp.ride_height * 100,
+                currp.turbo_boost * 100.0,
+                currp.oil_pressure,
+                currp.oil_temp,
+                currp.water_temp,
+                fuel_level,
+                1 if currp.asm_active else 0,
+                1 if currp.tcs_active else 0
+            ]
+            self.samples.append(row)
+            self.queue.put_nowait((timestamp, row, False))
+        except Exception:
+            print("[DATAFRAME ERROR] Could not assemble dataframe.")
+            sys.exit(1)
+
+    def save_log(self):
+        if not self.samples:
+            return
+
+        try:
+            df = pd.DataFrame(self.samples, columns=[c.get('name', c) if isinstance(c, dict) else c for c in self.channels])
+            
             metadata = {
-                'vehicle': 'Placeholder Vehicle',
-                'venue': 'Placeholder Track',
-                'event': 'Placeholder Event'
+                'vehicle': self.current_event.get('vehicle', 'Placeholder Vehicle'),
+                'venue': self.current_event.get('venue', 'Placeholder Track'),
+                'event': self.current_event.get('event', 'Placeholder Event')
             }
 
             output_path = self.config.get('log_output_path', './logs/session.ld')
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
             export_to_ld(df, metadata, output_path)
+            self.samples = []
         except Exception:
-            print("[DATAFRAME ERROR] Could not assemble dataframe.")
+            print("[EXPORT ERROR] Could not export to .ld file.")
             sys.exit(1)
 
 class GT7DataPacket:

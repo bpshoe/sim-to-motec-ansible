@@ -84,3 +84,15 @@
   loop:
     - motec-webapp.service
     - nginx
+
+- name: Run quick health check
+  become: yes
+  shell: scripts/diagnose_quick.sh
+  args: { chdir: "{{ repo_path }}" }
+  register: quick_check
+  ignore_errors: yes
+
+- name: On quick check failure, run full diagnose
+  when: quick_check.rc != 0
+  shell: scripts/diagnose.sh
+  args: { chdir: "{{ repo_path }}" }
