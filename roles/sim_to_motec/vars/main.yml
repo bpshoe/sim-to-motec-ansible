@@ -2,3 +2,4 @@
 app_repo: https://github.com/GeekyDeaks/sim-to-motec.git
 app_dest: /opt/sim-to-motec
 venv_path: "{{ app_dest }}/venv"
+repo_path: /opt/motec_webapp
