@@ -15,7 +15,7 @@ The system follows a simple, config-driven pipeline:
 ## Mandatory Tasks
 
 - **Remove `ldfparser` dependency:** Eliminate all references to the `ldfparser` library.
-- **Integrate `MotecLogGenerator`:** Use the `MotecLogGenerator` library to create .ld files.
+- **Integrate `MotecLogGenerator`:** Use the `MotecLogGenerator` library to create .ld files. This repo vendors MotecLogGenerator under third_party/. No pip install required.
 - **Configuration System:** Implement a `config.yml` file for easy configuration.
 - **Backend Startup & Health Endpoint:** Ensure the backend starts without errors and provides a `/health` endpoint.
 - **End-to-End Flow:** Implement the complete UDP to .ld pipeline.

@@ -2,7 +2,14 @@ import asyncio
 import yaml
 import os
 import pandas as pd
+import sys, traceback
 from gt7.writer.motec_exporter import export_to_ld
+
+def handle_uncaught(exc_type, exc_value, tb):
+    print(f"[UNEXPECTED ERROR] {exc_value}")
+    sys.exit(1)
+
+sys.excepthook = handle_uncaught
 
 CONFIG_FILE = 'config.yml'
 CONFIG_EXAMPLE_FILE = 'config.yml.example'

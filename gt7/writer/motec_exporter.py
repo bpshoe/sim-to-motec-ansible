@@ -2,8 +2,8 @@ import pandas as pd
 import sys
 import os
 
-# Add the third_party directory to the Python path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'third_party')))
+repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, os.path.join(repo_root, "third_party/motec_log_generator"))
 
 from motec_log_generator import MoTeCLog
 
@@ -15,5 +15,9 @@ def export_to_ld(df, metadata, output_path):
         metadata (dict): A dictionary of metadata for the log file.
         output_path (str): The path to write the .ld file to.
     """
-    log = MoTeCLog.from_dataframe(df, **metadata)
-    log.write(output_path)
+    try:
+        log = MoTeCLog.from_dataframe(df, **metadata)
+        log.write(output_path)
+    except Exception:
+        print("[EXPORT ERROR] Could not export to .ld file.")
+        sys.exit(1)

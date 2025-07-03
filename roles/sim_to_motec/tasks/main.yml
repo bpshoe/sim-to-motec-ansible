@@ -16,6 +16,13 @@
     dest: "{{ app_dest }}"
     version: main
     force: true
+
+- name: Vendor MotecLogGenerator
+  git:
+    repo: https://github.com/stevendaniluk/MotecLogGenerator.git
+    dest: "{{ repo_path }}/third_party/motec_log_generator"
+    version: ffa789aa498d709fb8bed24b625771b086f7377d
+
 - name: SIM2MOTEC | Create log directories
   ansible.builtin.file:
     path: "{{ app_dest }}/logs/{{ item }}"

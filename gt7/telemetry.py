@@ -174,101 +174,105 @@ class GT7Logger(MoTeCWriter):
         self.last_packet = p
 
     def process_packet(self, timestamp, packet):
-        beacon = 0
-        new_log = False
+        try:
+            beacon = 0
+            new_log = False
 
-        lastp = self.last_packet
-        currp = packet
+            lastp = self.last_packet
+            currp = packet
 
-        freq = self.sampler.freq if self.sampler else 60
+            freq = self.sampler.freq if self.sampler else 60
 
-        if currp.paused:
-            return
+            if currp.paused:
+                return
 
-        if not currp.in_race and not self.replay:
-            self.save_log()
-            return
-        
-        if currp.current_lap < lastp.current_lap:
-            self.save_log()
-
-        if not self.log_file:
-            self.track_detector = None # Replace with actual track detector
-            new_log = True
-            self.skip_samples = 3
-            then = datetime.fromtimestamp(timestamp)
+            if not currp.in_race and not self.replay:
+                self.save_log()
+                return
             
-            event = copy(self.event)
-            event['datetime'] = then.strftime("%Y-%m-%dT%H:%M:%S")
+            if currp.current_lap < lastp.current_lap:
+                self.save_log()
 
-            if not currp.in_race and not event['session']:
-                event['session'] = "Replay"
+            if not self.log_file:
+                self.track_detector = None # Replace with actual track detector
+                new_log = True
+                self.skip_samples = 3
+                then = datetime.fromtimestamp(timestamp)
+                
+                event = copy(self.event)
+                event['datetime'] = then.strftime("%Y-%m-%dT%H:%M:%S")
 
-            self.current_event = event
-            self.new_log(channels=self.channels, event=event)
+                if not currp.in_race and not event['session']:
+                    event['session'] = "Replay"
 
-        if self.skip_samples > 0:
-            l.info(f"skipping tick {currp.tick}")
-            self.skip_samples -= 1
-            return
+                self.current_event = event
+                self.new_log(channels=self.channels, event=event)
 
-        if currp.current_lap > lastp.current_lap:
-            beacon = 1
-            laptime = currp.last_laptime / 1000.0
-            self.queue.put_nowait((timestamp, {"laptime": laptime, "lap": lastp.current_lap}, True))
+            if self.skip_samples > 0:
+                l.info(f"skipping tick {currp.tick}")
+                self.skip_samples -= 1
+                return
 
-        if (currp.tick % 1000) == 0 or new_log:
-            l.info(
-                f"{timestamp:13.3f} tick: {currp.tick:6}"
-                f" {currp.current_lap:2}/{currp.laps:2}"
-                f" {currp.position[0]:10.5f} {currp.position[1]:10.5f} {currp.position[2]:10.5f}"
-                f" {currp.best_laptime:6}/{currp.last_laptime:6}"
-                f" {currp.race_position:3}/{currp.opponents:3}"
-                f" {currp.gear} {currp.throttle:3} {currp.brake:3} {currp.speed:3.0f}"
-                f" {currp.car_code:5}"
-            )
+            if currp.current_lap > lastp.current_lap:
+                beacon = 1
+                laptime = currp.last_laptime / 1000.0
+                self.queue.put_nowait((timestamp, {"laptime": laptime, "lap": lastp.current_lap}, True))
 
-        if self.imperial:
-            ms_to_speed = 2.23693629 # m/s to mph
-        else:
-            ms_to_speed = 3.6  # m/s to kph
+            if (currp.tick % 1000) == 0 or new_log:
+                l.info(
+                    f"{timestamp:13.3f} tick: {currp.tick:6}"
+                    f" {currp.current_lap:2}/{currp.laps:2}"
+                    f" {currp.position[0]:10.5f} {currp.position[1]:10.5f} {currp.position[2]:10.5f}"
+                    f" {currp.best_laptime:6}/{currp.last_laptime:6}"
+                    f" {currp.race_position:3}/{currp.opponents:3}"
+                    f" {currp.gear} {currp.throttle:3} {currp.brake:3} {currp.speed:3.0f}"
+                    f" {currp.car_code:5}"
+                )
 
-        if currp.in_race:
-            wheelspeed = [ r * s * -ms_to_speed for r,s in zip(currp.wheelradius, currp.wheelspeed) ]
-        else:
-            wheelspeed = [ r * s * ms_to_speed for r,s in zip(currp.wheelradius, currp.wheelspeed) ]
+            if self.imperial:
+                ms_to_speed = 2.23693629 # m/s to mph
+            else:
+                ms_to_speed = 3.6  # m/s to kph
 
-        if currp.fuel_capacity > 0:
-            fuel_level = currp.current_fuel / currp.fuel_capacity * 100.0
-        else:
-            fuel_level = 0
+            if currp.in_race:
+                wheelspeed = [ r * s * -ms_to_speed for r,s in zip(currp.wheelradius, currp.wheelspeed) ]
+            else:
+                wheelspeed = [ r * s * ms_to_speed for r,s in zip(currp.wheelradius, currp.wheelspeed) ]
 
-        samples = [
-            beacon,
-            currp.current_lap,
-            currp.rpm,
-            currp.gear,
-            currp.throttle * 100 / 255,
-            currp.brake * 100 / 255,
-            currp.clutch * 100 / 255,
-            0, # steer
-            currp.speed * ms_to_speed,
-            0,0, # lat, long
-            0,0,0, # velx, vely, velz
-            0,0,0, # glat, gvert, glong
-            *[p * 100 for p in currp.suspension],
-            *wheelspeed,
-            *currp.tyretemp,
-            currp.ride_height * 100,
-            currp.turbo_boost * 100.0,
-            currp.oil_pressure,
-            currp.oil_temp,
-            currp.water_temp,
-            fuel_level,
-            1 if currp.asm_active else 0,
-            1 if currp.tcs_active else 0
-        ]
-        self.queue.put_nowait((timestamp, samples, False))
+            if currp.fuel_capacity > 0:
+                fuel_level = currp.current_fuel / currp.fuel_capacity * 100.0
+            else:
+                fuel_level = 0
+
+            samples = [
+                beacon,
+                currp.current_lap,
+                currp.rpm,
+                currp.gear,
+                currp.throttle * 100 / 255,
+                currp.brake * 100 / 255,
+                currp.clutch * 100 / 255,
+                0, # steer
+                currp.speed * ms_to_speed,
+                0,0, # lat, long
+                0,0,0, # velx, vely, velz
+                0,0,0, # glat, gvert, glong
+                *[p * 100 for p in currp.suspension],
+                *wheelspeed,
+                *currp.tyretemp,
+                currp.ride_height * 100,
+                currp.turbo_boost * 100.0,
+                currp.oil_pressure,
+                currp.oil_temp,
+                currp.water_temp,
+                fuel_level,
+                1 if currp.asm_active else 0,
+                1 if currp.tcs_active else 0
+            ]
+            self.queue.put_nowait((timestamp, samples, False))
+        except Exception:
+            print("[DATAFRAME ERROR] Could not assemble dataframe.")
+            sys.exit(1)
 
 class GT7DataPacket:
     fmt = struct.Struct(
@@ -319,42 +323,46 @@ class GT7DataPacket:
     size = fmt.size
 
     def __init__(self, buf, encrypted=True):
-        if encrypted:
-            buf = self.decrypt(buf)
+        try:
+            if encrypted:
+                buf = self.decrypt(buf)
 
-        (
-            px, py, pz,
-            vx, vy, vz,
-            rw, rx, ry, rz,
-            self.ride_height,
-            self.rpm,
-            self.current_fuel,
-            self.fuel_capacity,
-            self.speed,
-            self.turbo_boost,
-            self.oil_pressure,
-            self.water_temp,
-            self.oil_temp,
-            ttfl, ttfr, ttrl, ttrr,
-            self.tick,
-            self.current_lap,
-            self.laps,
-            self.best_laptime,
-            self.last_laptime,
-            self.race_position,
-            self.rev_upshift,
-            self.rev_limit,
-            self.opponents,
-            self.flags,
-            gear,
-            self.throttle,
-            self.brake,
-            wsfl, wsfr, wsrl, wsrr,
-            wrfl, wrfr, wrrl, wrrr,
-            susfl, susfr, susrl, susrr,
-            self.clutch,
-            self.car_code
-        ) = self.fmt.unpack(buf)
+            (
+                px, py, pz,
+                vx, vy, vz,
+                rw, rx, ry, rz,
+                self.ride_height,
+                self.rpm,
+                self.current_fuel,
+                self.fuel_capacity,
+                self.speed,
+                self.turbo_boost,
+                self.oil_pressure,
+                self.water_temp,
+                self.oil_temp,
+                ttfl, ttfr, ttrl, ttrr,
+                self.tick,
+                self.current_lap,
+                self.laps,
+                self.best_laptime,
+                self.last_laptime,
+                self.race_position,
+                self.rev_upshift,
+                self.rev_limit,
+                self.opponents,
+                self.flags,
+                gear,
+                self.throttle,
+                self.brake,
+                wsfl, wsfr, wsrl, wsrr,
+                wrfl, wrfr, wrrl, wrrr,
+                susfl, susfr, susrl, susrr,
+                self.clutch,
+                self.car_code
+            ) = self.fmt.unpack(buf)
+        except Exception:
+            print("[PARSING ERROR] Could not parse packet.")
+            sys.exit(1)
 
         self.position = (px, py, pz)
         self.velocity = (vx, vy, vz)
@@ -375,16 +383,20 @@ class GT7DataPacket:
 
     @staticmethod
     def decrypt(dat):
-        KEY = b'Simulator Interface Packet GT7 ver 0.0'
-        oiv = dat[0x40:0x44]
-        iv1 = int.from_bytes(oiv, byteorder='little')
-        iv2 = iv1 ^ 0xDEADBEAF
-        IV = bytearray()
-        IV.extend(iv2.to_bytes(4, 'little'))
-        IV.extend(iv1.to_bytes(4, 'little'))
-        ddata = Salsa20.new(key=KEY[0:32], nonce=bytes(IV)).decrypt(dat)
+        try:
+            KEY = b'Simulator Interface Packet GT7 ver 0.0'
+            oiv = dat[0x40:0x44]
+            iv1 = int.from_bytes(oiv, byteorder='little')
+            iv2 = iv1 ^ 0xDEADBEAF
+            IV = bytearray()
+            IV.extend(iv2.to_bytes(4, 'little'))
+            IV.extend(iv1.to_bytes(4, 'little'))
+            ddata = Salsa20.new(key=KEY[0:32], nonce=bytes(IV)).decrypt(dat)
 
-        magic = int.from_bytes(ddata[0:4], byteorder='little')
-        if magic != 0x47375330:
-            return bytearray(b'')
-        return ddata
+            magic = int.from_bytes(ddata[0:4], byteorder='little')
+            if magic != 0x47375330:
+                return bytearray(b'')
+            return ddata
+        except Exception:
+            print("[DECRYPTION ERROR] Invalid packet or wrong key. Check your config’s salsa20_key.")
+            sys.exit(1)

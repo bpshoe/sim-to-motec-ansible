@@ -30,6 +30,7 @@ The system consists of the following components:
    ```bash
    pip install -r requirements.txt
    ```
+   This repo vendors MotecLogGenerator under third_party/. No pip install required.
 
 3. **Configure the logger:**
    Copy `config.yml.example` to `config.yml` and edit the values to match your setup.
