@@ -5,7 +5,7 @@ import os
 repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 sys.path.insert(0, os.path.join(repo_root, "third_party"))
 
-from motec_log_generator.motec_log import MoTeCLog
+from motec_log import MoTeCLog
 
 def export_to_ld(df, metadata, output_path):
     """Exports a pandas DataFrame to a MoTeC .ld file.
