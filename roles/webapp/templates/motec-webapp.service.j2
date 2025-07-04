@@ -6,6 +6,7 @@ After=network.target
 User={{ ansible_user }}
 Group={{ ansible_user }}
 WorkingDirectory={{ api_dest }}
+Environment=PYTHONPATH=/opt/motec_webapp/third_party/motec_log_generator:/opt/motec_webapp
 
 ExecStart={{ api_venv_path }}/bin/uvicorn api:app --host 127.0.0.1 --port 5000
 Restart=always
