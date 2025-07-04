@@ -1,0 +1,14 @@
+# Local configuration and inventory files
+inventory.ini
+config.yml
+
+# Ansible temporary and cache files
+*.retry
+*.log
+inventory.tmp
+.ansible/
+
+# Python cache and virtual environment
+__pycache__/
+*.pyc
+venv/
